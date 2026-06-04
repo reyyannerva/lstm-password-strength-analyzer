@@ -1,66 +1,288 @@
 # 🔐 LSTM Password Strength Analyzer
 
-LSTM tabanlı parola tahmin edilebilirlik analizi ve akıllı güvenli parola öneri sistemi.
+LSTM destekli parola güvenliği analiz sistemi, zayıf parola desen tespiti ve güvenli parola öneri platformu.
 
-## 📌 Proje Hakkında
+---
 
-Bu proje, kullanıcıların oluşturduğu parolaların güvenlik seviyesini analiz etmek ve daha güçlü parola önerileri sunmak amacıyla geliştirilmektedir.
+# 📖 Proje Hakkında
 
-Sistem, geçmiş parola örüntülerini öğrenen Long Short-Term Memory (LSTM) tabanlı derin öğrenme modeli kullanarak parolaların tahmin edilebilirlik düzeyini değerlendirecektir.
+LSTM Password Strength Analyzer, kullanıcıların oluşturduğu parolaların güvenlik seviyesini değerlendirmek, zayıf parola desenlerini tespit etmek ve daha güvenli parola önerileri sunmak amacıyla geliştirilmiş bir siber güvenlik projesidir.
 
-## 🎯 Proje Amaçları
+Sistem, geleneksel kural tabanlı parola analiz yöntemlerini makine öğrenmesi tabanlı tahmin edilebilirlik yaklaşımıyla birleştirmektedir. Böylece yalnızca parola uzunluğu ve karakter çeşitliliği değil, aynı zamanda parolanın içerdiği riskli örüntüler de analiz edilmektedir.
+
+Proje kapsamında geliştirilen FastAPI tabanlı servisler sayesinde parola analizi, açıklama üretimi ve güvenli parola oluşturma işlemleri REST API üzerinden gerçekleştirilebilmektedir.
+
+---
+
+# 🎯 Proje Amaçları
+
+Bu projenin temel amaçları:
 
 * Parolaların güvenlik seviyesini analiz etmek
-* Tahmin edilmesi kolay parola desenlerini tespit etmek
-* LSTM modeli ile parola örüntülerini öğrenmek
+* Zayıf parola desenlerini tespit etmek
+* Kullanıcıya açıklanabilir geri bildirim sağlamak
 * Güvenli parola önerileri üretmek
-* Kullanıcı dostu bir web arayüzü sunmak
-* API üzerinden parola değerlendirme hizmeti sağlamak
+* REST API servisleri geliştirmek
+* Modern bir web arayüzü sunmak
+* Otomatik test ve CI/CD süreçlerini uygulamak
+* LSTM tabanlı tahmin edilebilirlik analizine altyapı hazırlamak
 
-## 🏗️ Sistem Mimarisi
+---
 
-Proje aşağıdaki temel bileşenlerden oluşmaktadır:
+# 🚀 Özellikler
 
-### Veri İşleme Katmanı
+## Parola Güvenlik Analizi
 
-* Veri temizleme
-* Karakter normalizasyonu
-* Tokenizasyon
-* Eğitim verisi hazırlama
+Sistem aşağıdaki kriterleri değerlendirir:
 
-### Yapay Zeka Katmanı
+* Parola uzunluğu
+* Büyük harf kullanımı
+* Küçük harf kullanımı
+* Sayı kullanımı
+* Özel karakter kullanımı
+* Karakter çeşitliliği
 
-* LSTM tabanlı parola analiz modeli
-* Tahmin edilebilirlik skorlama sistemi
-* Güvenlik seviyesi sınıflandırması
+---
 
-### Güvenli Parola Öneri Sistemi
+## Zayıf Desen Tespiti
 
-* Rastgele parola üretimi
-* Desen tabanlı parola analizi
-* Güvenlik puanına göre öneriler
+Sistem aşağıdaki riskli desenleri algılar:
 
-### Web ve API Katmanı
+* Ardışık karakterler (`123`, `abc`)
+* Klavye desenleri (`qwerty`, `asdf`)
+* Tekrarlayan karakterler (`aaa`, `111`)
+* Yaygın parola kelimeleri
+* Yaygın yıl ifadeleri
+* Sadece harflerden oluşan parolalar
+* Sadece rakamlardan oluşan parolalar
 
-* Flask/FastAPI tabanlı servisler
-* REST API endpointleri
-* Kullanıcı arayüzü
+---
 
-## 👥 Proje Ekibi
+## Güvenli Parola Üretimi
 
-| Üye    | Görev                                             |
-| ------ | ------------------------------------------------- |
-| Reyyan | Veri yönetimi, entegrasyon ve proje koordinasyonu |
-| Burcu  | Model geliştirme ve frontend bileşenleri          |
-| Merve  | Veri hazırlama, test ve analiz modülleri          |
+Sistem:
 
-## 🌿 Git Workflow
+* Güçlü parola üretir
+* Riskli desenleri filtreler
+* Karakter çeşitliliğini garanti eder
+* İstenilen uzunlukta parola oluşturabilir
 
-Bu projede Git Flow benzeri bir geliştirme modeli kullanılmaktadır.
+---
 
-### Branch Yapısı
+## Açıklama ve Öneri Sistemi
+
+Her parola için:
+
+* Güvenlik puanı
+* Güvenlik seviyesi
+* Riskli desen açıklamaları
+* Güvenlik önerileri
+
+üretilmektedir.
+
+---
+
+# 🏗 Sistem Mimarisi
 
 ```text
-main  → Kararlı sürüm
-dev   → Ana geliştirme branch'i
-feature/* → Görev bazlı geliştirme branch'leri
+Frontend
+    │
+    ▼
+FastAPI Backend
+    │
+    ├── Score Endpoint
+    ├── Explain Endpoint
+    ├── Generate Endpoint
+    │
+    ▼
+Security Layer
+    │
+    ├── Pattern Detection
+    ├── Hybrid Risk Scorer
+    ├── Rule Analysis
+    └── Password Generator
+```
+
+---
+
+# 📂 Proje Yapısı
+
+```text
+lstm-password-strength-analyzer
+│
+├── frontend/
+│   ├── index.html
+│   ├── style.css
+│   └── script.js
+│
+├── src/
+│   ├── api/
+│   ├── security/
+│   ├── data/
+│   └── model/
+│
+├── tests/
+│
+├── reports/
+│
+├── .github/
+│   └── workflows/
+│
+├── requirements.txt
+└── README.md
+```
+
+---
+
+# ⚙️ Kurulum
+
+## Repository'yi Klonlayın
+
+```bash
+git clone https://github.com/reyyannerva/lstm-password-strength-analyzer.git
+cd lstm-password-strength-analyzer
+```
+
+## Sanal Ortam Oluşturun
+
+```bash
+python -m venv venv
+```
+
+Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+Linux / Mac:
+
+```bash
+source venv/bin/activate
+```
+
+## Bağımlılıkları Kurun
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# ▶️ Uygulamayı Çalıştırma
+
+Backend:
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+Swagger Arayüzü:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Frontend:
+
+```text
+frontend/index.html
+```
+
+dosyasını tarayıcıda açabilirsiniz.
+
+---
+
+# 🔌 API Endpointleri
+
+## GET /health
+
+Sistemin çalışıp çalışmadığını kontrol eder.
+
+---
+
+## POST /score
+
+Parola güvenlik puanı üretir.
+
+Örnek:
+
+```json
+{
+  "password": "Str0ng!Pass123"
+}
+```
+
+---
+
+## POST /explain
+
+Parola için açıklama ve öneriler üretir.
+
+Örnek:
+
+```json
+{
+  "password": "password123"
+}
+```
+
+---
+
+## POST /generate
+
+Güvenli parola üretir.
+
+Örnek:
+
+```json
+{
+  "length": 16
+}
+```
+
+---
+
+# 🧪 Testler
+
+Tüm testleri çalıştırmak için:
+
+```bash
+python -m pytest
+```
+
+API testleri:
+
+```bash
+python -m pytest tests/test_api.py
+```
+
+---
+
+# 🔄 CI/CD
+
+Proje GitHub Actions ile entegredir.
+
+Aşağıdaki durumlarda testler otomatik çalıştırılır:
+
+* Pull Request oluşturulduğunda
+* dev branch'ine push yapıldığında
+* main branch'ine push yapıldığında
+
+Başarısız test durumunda workflow hata verir.
+
+---
+
+# 👥 Proje Ekibi
+
+| Üye    | Sorumluluk                                      |
+| ------ | ----------------------------------------------- |
+| Reyyan | Proje yönetimi, entegrasyon, backend geliştirme |
+| Burcu  | Frontend geliştirme, kullanıcı arayüzü          |
+| Merve  | Veri işleme, testler ve analiz modülleri        |
+
+---
+
+# 📄 Lisans
+
+Bu proje akademik amaçlarla geliştirilmiştir.
