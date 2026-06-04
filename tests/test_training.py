@@ -62,3 +62,30 @@ def test_train_uses_default_optimizer_and_criterion(sample_data_loader):
 
     assert isinstance(history, dict)
     assert history["train_loss"][0] >= 0.0
+
+
+def test_train_writes_checkpoint_and_log(sample_data_loader, tmp_path):
+    model = build_model(vocab_size=16, embed_dim=16, hidden_dim=32, num_layers=1, dropout=0.0)
+    checkpoint_path = tmp_path / "checkpoints" / "model_epoch.pt"
+    log_path = tmp_path / "logs" / "training.json"
+
+    history = train(
+        model,
+        sample_data_loader,
+        epochs=1,
+        device=torch.device("cpu"),
+        checkpoint_path=str(checkpoint_path),
+        log_path=str(log_path),
+    )
+
+    assert checkpoint_path.exists()
+    assert log_path.exists()
+    assert history["train_loss"][0] >= 0.0
+
+    import json
+
+    with open(log_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    assert "train_loss" in data
+    assert len(data["train_loss"]) == 1

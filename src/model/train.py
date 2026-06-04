@@ -8,6 +8,8 @@ Provides a simple training pipeline that supports:
 - default optimizer and criterion configuration
 """
 
+import json
+import os
 from typing import Dict, Optional
 
 import torch
@@ -62,6 +64,25 @@ def train_epoch(
     return total_loss / total_tokens if total_tokens > 0 else float("inf")
 
 
+def _save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, epoch: int, train_loss: float, path: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    torch.save(
+        {
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "train_loss": train_loss,
+        },
+        path,
+    )
+
+
+def _save_training_log(history: Dict[str, list], path: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=2)
+
+
 def train(
     model: nn.Module,
     train_loader: torch.utils.data.DataLoader,
@@ -71,6 +92,8 @@ def train(
     criterion: Optional[nn.Module] = None,
     device: Optional[torch.device] = None,
     grad_clip: Optional[float] = None,
+    checkpoint_path: Optional[str] = None,
+    log_path: Optional[str] = None,
 ) -> Dict[str, list]:
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -100,5 +123,11 @@ def train(
         else:
             history["val_loss"].append(None)
             history["val_perplexity"].append(None)
+
+        if checkpoint_path is not None:
+            _save_checkpoint(model, optimizer, epoch, train_loss, checkpoint_path)
+
+        if log_path is not None:
+            _save_training_log(history, log_path)
 
     return history
