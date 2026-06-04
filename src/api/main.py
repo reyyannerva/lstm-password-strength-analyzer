@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.generate_endpoint import router as generate_router
 from src.api.score_endpoint import router as score_router
+from src.api.explain_endpoint import router as explain_router
 
 
 PROJECT_NAME = "LSTM Password Strength Analyzer"
@@ -32,6 +33,10 @@ TAGS_METADATA = [
     {
         "name": "Password Generator",
         "description": "Güvenli parola üretme ve skorlama işlemleri.",
+    },
+    {
+        "name": "Password Explanation",
+        "description": "Parola açıklama, risk nedenleri ve iyileştirme önerileri.",
     },
 ]
 
@@ -57,6 +62,7 @@ def create_app() -> FastAPI:
 
     app.include_router(score_router, tags=["Password Scoring"])
     app.include_router(generate_router, tags=["Password Generator"])
+    app.include_router(explain_router, tags=["Password Explanation"])
 
     register_health_routes(app)
 
@@ -76,6 +82,7 @@ def register_health_routes(app: FastAPI) -> None:
                 "health": "GET /health",
                 "score": "POST /score",
                 "generate": "POST /generate",
+                "explain": "POST /explain",
             },
         }
 
