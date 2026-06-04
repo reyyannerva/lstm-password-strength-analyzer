@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parola Güvenlik Analizi</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Parola Güvenlik Analizi</h1>
+    <p class="subtitle">LSTM tabanlı akıllı parola analizi</p>
+
+    <div class="input-section">
+      <div class="input-wrapper">
+        <input
+          type="password"
+          id="passwordInput"
+          placeholder="Parolanızı girin..."
+          autocomplete="off"
+        />
+        <button id="toggleVisibility" class="toggle-btn" title="Göster/Gizle">👁</button>
+      </div>
+      <div class="button-group">
+        <button id="analyzeBtn" class="btn btn-primary">Analiz Et</button>
+        <button id="generateBtn" class="btn btn-secondary">Güvenli Parola Üret</button>
+      </div>
+    </div>
+
+    <div id="resultSection" class="result-section hidden">
+      <div class="score-card">
+        <div class="score-header">
+          <span id="securityLevel" class="security-level"></span>
+          <span id="riskScore" class="risk-score"></span>
+        </div>
+
+        <div class="progress-container">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+        <p id="scoreMessage" class="score-message"></p>
+
+        <div id="patternsSection" class="patterns-section hidden">
+          <h3>Tespit Edilen Zayıf Desenler</h3>
+          <ul id="patternsList"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="generatedSection" class="generated-section hidden">
+      <h3>Üretilen Güvenli Parola</h3>
+      <div class="generated-wrapper">
+        <code id="generatedPassword"></code>
+        <button id="copyBtn" class="btn btn-copy">Kopyala</button>
+      </div>
+    </div>
+
+    <div id="errorMsg" class="error-msg hidden"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
