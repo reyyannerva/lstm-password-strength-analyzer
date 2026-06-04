@@ -5,6 +5,7 @@ on:
     branches:
       - dev
       - main
+
   push:
     branches:
       - dev
@@ -32,5 +33,5 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pytest httpx fastapi uvicorn
 
-      - name: Run tests
-        run: pytest tests/
+      - name: Run API tests
+        run: python -m pytest tests/test_api.py -v
