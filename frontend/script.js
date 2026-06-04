@@ -14,6 +14,10 @@ const patternsList = document.getElementById("patternsList");
 const generatedSection = document.getElementById("generatedSection");
 const generatedPassword = document.getElementById("generatedPassword");
 const copyBtn = document.getElementById("copyBtn");
+const reasonsSection = document.getElementById("reasonsSection");
+const reasonsList = document.getElementById("reasonsList");
+const suggestionsSection = document.getElementById("suggestionsSection");
+const suggestionsList = document.getElementById("suggestionsList");
 const errorMsg = document.getElementById("errorMsg");
 
 const LEVEL_MAP = {
@@ -41,21 +45,38 @@ function renderScore(data) {
 
   securityLevel.textContent = levelKey;
   securityLevel.className = `security-level level-${info.cls}`;
-  riskScore.textContent = `${data.risk_score}`;
+  riskScore.textContent = `${data.security_score ?? data.risk_score ?? 0}`;
   progressBar.style.width = `${info.bar}%`;
   progressBar.className = `progress-bar bar-${info.cls}`;
-  scoreMessage.textContent = data.message;
+  scoreMessage.textContent = data.assessment || data.message || "";
 
-  patternsList.innerHTML = "";
-  if (data.weak_patterns && data.weak_patterns.length > 0) {
-    data.weak_patterns.forEach((p) => {
+  reasonsList.innerHTML = "";
+  const reasons = [
+    ...(data.missing_requirements || []).map((item) => `Eksik kural: ${item}`),
+    ...(data.pattern_warnings || []).map((item) => `Risk deseni: ${item}`),
+  ];
+
+  if (reasons.length > 0) {
+    reasons.forEach((reason) => {
       const li = document.createElement("li");
-      li.textContent = p;
-      patternsList.appendChild(li);
+      li.textContent = reason;
+      reasonsList.appendChild(li);
     });
-    patternsSection.classList.remove("hidden");
+    reasonsSection.classList.remove("hidden");
   } else {
-    patternsSection.classList.add("hidden");
+    reasonsSection.classList.add("hidden");
+  }
+
+  suggestionsList.innerHTML = "";
+  if (data.suggestions && data.suggestions.length > 0) {
+    data.suggestions.forEach((suggestion) => {
+      const li = document.createElement("li");
+      li.textContent = suggestion;
+      suggestionsList.appendChild(li);
+    });
+    suggestionsSection.classList.remove("hidden");
+  } else {
+    suggestionsSection.classList.add("hidden");
   }
 
   resultSection.classList.remove("hidden");
@@ -71,7 +92,7 @@ analyzeBtn.addEventListener("click", async () => {
   resultSection.classList.add("hidden");
 
   try {
-    const res = await fetch(`${API_BASE}/score`, {
+    const res = await fetch(`${API_BASE}/explain`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: pw }),
@@ -99,7 +120,7 @@ generateBtn.addEventListener("click", async () => {
       return;
     }
     const data = await res.json();
-    generatedPassword.textContent = data.password;
+    generatedPassword.textContent = data.generated_password || data.password || "";
     generatedSection.classList.remove("hidden");
   } catch {
     showError("API'ye bağlanılamadı. Backend çalışıyor mu?");
