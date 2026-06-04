@@ -251,5 +251,51 @@ h1 {
 }
 
 .hidden {
+  display: none !important;
+}
+
+.reasons-section,
+.suggestions-section {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1rem;
+}
+
+.reasons-section h3,
+.suggestions-section h3 {
+  font-size: 0.9rem;
+  color: #ffd54f;
+  margin-bottom: 0.5rem;
+}
+
+#reasonsList,
+#suggestionsList,
+#patternsList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+#reasonsList li,
+#suggestionsList li,
+#patternsList li {
+  font-size: 0.9rem;
+  color: #cfd8dc;
+  padding-left: 1.2rem;
+  position: relative;
+}
+
+#reasonsList li::before,
+#suggestionsList li::before,
+#patternsList li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #81d4fa;
+}
+
+
+.hidden {
   display: none;
 }
