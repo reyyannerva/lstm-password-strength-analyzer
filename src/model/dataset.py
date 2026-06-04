@@ -35,7 +35,7 @@ class PasswordDataset(Dataset):
         self,
         passwords: Sequence[str],
         tokenizer,
-        max_length: int = 64,
+        seq_len: int = 64,
         pad_token_id: int = 0,
     ) -> None:
         if passwords is None:
@@ -47,12 +47,13 @@ class PasswordDataset(Dataset):
         if not hasattr(tokenizer, "encode"):
             raise TypeError("tokenizer must have an encode(password) method")
 
-        if max_length < 2:
-            raise ValueError("max_length must be at least 2")
+        if seq_len < 2:
+            raise ValueError("seq_len must be at least 2")
 
         self.passwords = [str(password).strip() for password in passwords if str(password).strip()]
         self.tokenizer = tokenizer
-        self.max_length = max_length
+        # backward compatible name: seq_len is the public parameter expected by tests
+        self.seq_len = seq_len
         self.pad_token_id = pad_token_id
 
     def __len__(self) -> int:
@@ -66,7 +67,7 @@ class PasswordDataset(Dataset):
         if not isinstance(token_ids, list):
             token_ids = list(token_ids)
 
-        token_ids = token_ids[: self.max_length]
+        token_ids = token_ids[: self.seq_len]
 
         if len(token_ids) < 2:
             token_ids = token_ids + [self.pad_token_id] * (2 - len(token_ids))
@@ -74,8 +75,8 @@ class PasswordDataset(Dataset):
         input_ids = token_ids[:-1]
         target_ids = token_ids[1:]
 
-        input_ids = self._pad(input_ids, self.max_length - 1)
-        target_ids = self._pad(target_ids, self.max_length - 1)
+        input_ids = self._pad(input_ids, self.seq_len - 1)
+        target_ids = self._pad(target_ids, self.seq_len - 1)
 
         return (
             torch.tensor(input_ids, dtype=torch.long),
@@ -94,7 +95,7 @@ def create_dataloader(
     passwords: Sequence[str],
     tokenizer,
     batch_size: int = 32,
-    max_length: int = 64,
+    seq_len: int = 64,
     pad_token_id: int = 0,
     shuffle: bool = True,
     num_workers: int = 0,
@@ -106,7 +107,7 @@ def create_dataloader(
         passwords: List of password strings.
         tokenizer: Tokenizer object with an encode(password) method.
         batch_size: Number of samples per batch.
-        max_length: Maximum encoded sequence length.
+        seq_len: Maximum encoded sequence length.
         pad_token_id: Padding token id.
         shuffle: Whether to shuffle the dataset.
         num_workers: DataLoader worker count.
@@ -118,7 +119,7 @@ def create_dataloader(
     dataset = PasswordDataset(
         passwords=passwords,
         tokenizer=tokenizer,
-        max_length=max_length,
+        seq_len=seq_len,
         pad_token_id=pad_token_id,
     )
 
