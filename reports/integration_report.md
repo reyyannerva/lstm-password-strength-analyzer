@@ -2,61 +2,67 @@
 
 ## Amaç
 
-Bu çalışma kapsamında proje modüllerinin birlikte çalışabilirliği kontrol edilmiş ve sistemin uçtan uca çalıştığı doğrulanmıştır.
+Bu çalışma kapsamında LSTM Password Strength Analyzer projesindeki temel modüllerin birlikte çalışabilirliği kontrol edilmiş ve sistemin uçtan uca çalıştığı doğrulanmıştır.
 
-## Kontrol Edilen Bileşenler
+## Kapsam
 
-- Model modülü
-- Security modülü
-- API katmanı
-- Frontend entegrasyonu
+Bu entegrasyon çalışması aşağıdaki bileşenleri kapsamaktadır:
+
+- Frontend kullanıcı arayüzü
+- FastAPI backend katmanı
+- Security modülleri
 - Parola skorlama akışı
 - Açıklama ve öneri sistemi
-- Güvenli parola üretme akışı
+- Güvenli parola üretme sistemi
+- API endpoint kontrolleri
 
-## Doğrulanan API Endpointleri
+## Kontrol Edilen Endpointler
 
-| Endpoint | Durum |
-|---|---|
-| GET /health | Başarılı |
-| POST /score | Başarılı |
-| POST /explain | Başarılı |
-| POST /generate | Başarılı |
+| Endpoint | İşlev | Durum |
+|---|---|---|
+| GET /health | Sistem durum kontrolü | Başarılı |
+| POST /score | Parola güvenlik analizi | Başarılı |
+| POST /explain | Açıklama ve öneri üretimi | Başarılı |
+| POST /generate | Güvenli parola üretimi | Başarılı |
 
 ## Uçtan Uca Kullanıcı Akışı
 
-Aşağıdaki kullanıcı akışları test edilmiştir:
+Aşağıdaki kullanıcı akışı doğrulanmıştır:
 
-1. Kullanıcı parola girer.
-2. Frontend API'ye istek gönderir.
-3. Backend parola skorunu üretir.
-4. Açıklama ve öneriler kullanıcıya gösterilir.
+1. Kullanıcı frontend üzerinden parola girer.
+2. Frontend, FastAPI backend endpointlerine istek gönderir.
+3. Backend parola güvenlik analizini gerçekleştirir.
+4. Sistem parola için açıklama ve öneriler üretir.
 5. Kullanıcı güvenli parola üretebilir.
-6. Üretilen parola tekrar analiz edilebilir.
+6. Üretilen parola tekrar skorlanabilir ve açıklanabilir.
 
 ## Frontend Entegrasyonu
 
-Frontend tarafında aşağıdaki endpoint bağlantıları doğrulanmıştır:
+Frontend tarafında JavaScript `fetch` kullanılarak aşağıdaki endpointlere bağlantı kurulduğu doğrulanmıştır:
 
 - /score
 - /explain
 - /generate
 
-JavaScript tarafında fetch kullanılarak API entegrasyonu yapılmıştır.
+Bu sayede kullanıcı arayüzü ile backend servisleri arasında gerekli entegrasyon sağlanmıştır.
 
-## Testler
+## Security Modülü Entegrasyonu
 
-Sistem entegrasyonu için `tests/test_system_integration.py` dosyası oluşturulmuştur.
+Security katmanında aşağıdaki modüllerin import edilebilir ve çağrılabilir olduğu doğrulanmıştır:
 
-Bu testler:
+- Password generator
+- Pattern detection
+- Hybrid risk scorer
 
-- API endpointlerinin çalıştığını
-- Üretilen parolanın skorlanabildiğini
-- Üretilen parolanın açıklanabildiğini
-- Frontend dosyalarının API bağlantılarını içerdiğini
-- Security modüllerinin import edilebildiğini
+Bu modüller birlikte çalışarak parola analizi ve güvenli parola üretimi akışını desteklemektedir.
 
-kontrol eder.
+## Test Dosyası
+
+Bu issue kapsamında aşağıdaki test dosyası oluşturulmuştur:
+
+- tests/test_system_integration.py
+
+Bu test dosyası sistemin uçtan uca çalışmasını otomatik olarak doğrulamaktadır.
 
 ## Sonuç
 
