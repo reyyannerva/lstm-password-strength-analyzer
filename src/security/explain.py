@@ -151,6 +151,43 @@ def explain_password(password: str) -> Dict[str, Any]:
 
 def format_explanation(password: str) -> str:
     """
+<<<<<<< feature/14-security-service-integration
+    Format password explanation as readable Turkish text.
+
+    Returns:
+        Formatted explanation string with structure and emojis.
+    """
+    explanation = explain_password(password)
+    
+    lines = [
+        f"📋 Parola Analiz Raporu",
+        f"=" * 40,
+        f"🔐 Parola: {explanation['password']}",
+        f"📊 Güvenlik Seviyesi: {explanation['security_level']}",
+        f"",
+        f"💬 Değerlendirme:",
+        f"{explanation['assessment']}",
+    ]
+    
+    if explanation['missing_requirements']:
+        lines.append("")
+        lines.append("❌ Eksik Güvenlik Kuralları:")
+        for req in explanation['missing_requirements']:
+            lines.append(f"  • {req}")
+    
+    if explanation['pattern_warnings']:
+        lines.append("")
+        lines.append("⚠️ Zayıf Parola Desenleri:")
+        for warning in explanation['pattern_warnings']:
+            lines.append(f"  {warning}")
+    
+    if explanation['suggestions']:
+        lines.append("")
+        lines.append("✅ İyileştirme Önerileri:")
+        for suggestion in explanation['suggestions']:
+            lines.append(f"  {suggestion}")
+    
+=======
     Format password explanation as a human-readable string in Turkish.
 
     Returns:
@@ -179,4 +216,5 @@ def format_explanation(password: str) -> str:
         for suggestion in explanation["suggestions"]:
             lines.append(f"   {suggestion}")
 
+>>>>>>> dev
     return "\n".join(lines)
