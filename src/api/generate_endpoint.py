@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from src.security.generator import generate_password
+from src.security.generator import generate_password, generate_multiple
 from src.security.risk_scorer import calculate_hybrid_score
 
 router = APIRouter(tags=["Password Generator"])
@@ -24,6 +24,7 @@ class GenerateRequest(BaseModel):
         description="Üretilecek parolanın uzunluğu.",
         examples=[16],
     )
+    count: int = Field(default=1, ge=1, le=5, description="Üretilecek seçenek sayısı.")
     use_uppercase: bool = Field(default=True, description="Büyük harf kullan.")
     use_lowercase: bool = Field(default=True, description="Küçük harf kullan.")
     use_digits: bool = Field(default=True, description="Rakam kullan.")
@@ -44,6 +45,15 @@ class GenerateRequest(BaseModel):
         return self
 
 
+class PasswordOption(BaseModel):
+    password: str
+    password_length: int
+    security_score: float
+    security_level: str
+    weak_patterns: list[str]
+    is_strong: bool
+
+
 class GenerateResponse(BaseModel):
     generated_password: str
     password_length: int
@@ -52,6 +62,7 @@ class GenerateResponse(BaseModel):
     weak_patterns: list[str]
     feedback: list[str]
     message: str
+    alternatives: list[PasswordOption]
     metadata: dict[str, Any]
 
 
@@ -90,24 +101,32 @@ def generate_secure_password(request: GenerateRequest) -> GenerateResponse:
         )
 
     try:
-        generated = generate_password(length=request.length)
+        options = generate_multiple(length=request.length, count=max(request.count, 3))
     except Exception as exc:
         raise HTTPException(
             status_code=500,
             detail=f"Parola üretme sırasında beklenmeyen bir hata oluştu: {str(exc)}",
         ) from exc
 
-    password = generated.get("password")
+    if not options:
+        raise HTTPException(status_code=500, detail="Generator modülü geçerli bir parola döndürmedi.")
 
-    if not password:
-        raise HTTPException(
-            status_code=500,
-            detail="Generator modülü geçerli bir parola döndürmedi.",
-        )
-
-    weak_patterns = generated.get("weak_patterns", [])
-
+    best = options[0]
+    password = best["password"]
+    weak_patterns = best.get("weak_patterns", [])
     score_result = calculate_hybrid_score(password)
+
+    alternatives = []
+    for opt in options[1:]:
+        alt_score = calculate_hybrid_score(opt["password"])
+        alternatives.append(PasswordOption(
+            password=opt["password"],
+            password_length=opt["length"],
+            security_score=alt_score["final_score"],
+            security_level=alt_score["security_level"],
+            weak_patterns=opt.get("weak_patterns", []),
+            is_strong=opt.get("is_strong", True),
+        ))
 
     return GenerateResponse(
         generated_password=password,
@@ -117,9 +136,11 @@ def generate_secure_password(request: GenerateRequest) -> GenerateResponse:
         weak_patterns=weak_patterns,
         feedback=score_result["feedback"],
         message=_build_message(score_result["security_level"]),
+        alternatives=alternatives,
         metadata={
             "requested_length": request.length,
             "actual_length": len(password),
+            "options_generated": len(options),
             "options": {
                 "use_uppercase": request.use_uppercase,
                 "use_lowercase": request.use_lowercase,
@@ -127,6 +148,6 @@ def generate_secure_password(request: GenerateRequest) -> GenerateResponse:
                 "use_special": request.use_special,
             },
             "scoring_method": "hybrid_rule_based_lstm_ready",
-            "generator_module": "src.security.generator.generate_password",
+            "generator_module": "src.security.generator.generate_multiple",
         },
     )
