@@ -7,6 +7,7 @@ This module detects predictable password patterns such as:
 - keyboard patterns
 - common years
 - common weak words
+- embedded common words
 - common names
 - date-like numeric patterns
 - phone-like numeric patterns
@@ -16,9 +17,6 @@ This module detects predictable password patterns such as:
 Public API:
 - detect_patterns(password) -> list[str]
 - detect_pattern_details(password) -> list[dict]
-
-The string outputs are intentionally Turkish because tests, API feedback,
-risk scoring, and frontend messages rely on these phrases.
 """
 
 import re
@@ -71,18 +69,14 @@ COMMON_NAMES = [
 ]
 
 COMMON_YEARS = [str(year) for year in range(1950, 2031)]
-
-COMMON_YEARS_PATTERN = re.compile(r"(19|20)\d{2}")
 REPEATED_CHARS_PATTERN = re.compile(r"(.)\1{2,}")
 
 
 def _safe_password(password: Optional[str]) -> str:
-    if password is None:
-        return ""
-    return str(password)
+    return "" if password is None else str(password)
 
 
-def _is_strong_context(password: str) -> bool:
+def _is_strong_context(password: Optional[str]) -> bool:
     password = _safe_password(password)
 
     return (
@@ -94,38 +88,26 @@ def _is_strong_context(password: str) -> bool:
     )
 
 
-def _is_short_or_simple(password: str) -> bool:
-    password = _safe_password(password)
-
-    has_lower = bool(re.search(r"[a-z]", password))
-    has_upper = bool(re.search(r"[A-Z]", password))
-    has_digit = bool(re.search(r"\d", password))
-    has_special = bool(re.search(r"[^a-zA-Z0-9]", password))
-    variety_count = sum([has_lower, has_upper, has_digit, has_special])
-
-    return len(password) < 10 or variety_count <= 2
-
-
 def detect_repeated_chars(password: Optional[str]) -> Optional[PatternFinding]:
     password = _safe_password(password)
 
-    match = REPEATED_CHARS_PATTERN.search(password)
-    if not match:
-        return None
+    if REPEATED_CHARS_PATTERN.search(password):
+        return PatternFinding(
+            code="repeated_chars",
+            message="Tekrarlayan karakter deseni tespit edildi (tekrarlı karakter)",
+            severity="medium",
+            penalty=20 if len(password) <= 10 else 10,
+        )
 
-    return PatternFinding(
-        code="repeated_characters",
-        message="tekrarlı karakter tespit edildi",
-        severity="medium",
-        penalty=20 if len(password) <= 10 else 10,
-    )
+    return None
 
 
 def detect_sequential_chars(password: Optional[str]) -> Optional[PatternFinding]:
-    password = _safe_password(password).lower()
+    raw_password = _safe_password(password)
+    lowered_password = raw_password.lower()
 
-    for i in range(len(password) - 2):
-        trio = password[i:i + 3]
+    for i in range(len(lowered_password) - 2):
+        trio = lowered_password[i:i + 3]
 
         if not trio.isalnum():
             continue
@@ -139,20 +121,34 @@ def detect_sequential_chars(password: Optional[str]) -> Optional[PatternFinding]
             and ord(trio[1]) - ord(trio[2]) == 1
         )
 
-        if ascending or descending:
-            if _is_strong_context(password):
-                penalty = 8
-            elif len(password) <= 8:
-                penalty = 30
-            else:
-                penalty = 14
+        if not ascending and not descending:
+            continue
 
+        simple = lowered_password.isdigit() or lowered_password.isalpha()
+        strong_context = _is_strong_context(raw_password)
+
+        if strong_context:
             return PatternFinding(
-                code="sequential_characters",
-                message="ardışık karakter tespit edildi",
-                severity="medium",
-                penalty=penalty,
+                code="embedded_sequence",
+                message="Kısa bir ardışık karakter deseni tespit edildi",
+                severity="low",
+                penalty=5,
             )
+
+        if simple:
+            return PatternFinding(
+                code="simple_sequence",
+                message="ardışık karakter tespit edildi",
+                severity="high",
+                penalty=35,
+            )
+
+        return PatternFinding(
+            code="embedded_sequence",
+            message="ardışık karakter tespit edildi",
+            severity="medium",
+            penalty=20,
+        )
 
     return None
 
@@ -169,7 +165,7 @@ def detect_keyboard_pattern(password: Optional[str]) -> Optional[PatternFinding]
                 if chunk in password or reverse_chunk in password:
                     return PatternFinding(
                         code="keyboard_pattern",
-                        message="klavye deseni tespit edildi",
+                        message="Klavye deseni tespit edildi (klavye deseni)",
                         severity="high",
                         penalty=35 if len(password) <= 10 else 18,
                     )
@@ -180,18 +176,16 @@ def detect_keyboard_pattern(password: Optional[str]) -> Optional[PatternFinding]
 def detect_common_year(password: Optional[str]) -> Optional[PatternFinding]:
     password = _safe_password(password)
 
-    match = COMMON_YEARS_PATTERN.search(password)
-    if not match:
-        return None
+    for year in COMMON_YEARS:
+        if year in password:
+            return PatternFinding(
+                code="common_year",
+                message=f"yaygın yıl tespit edildi: {year}",
+                severity="low",
+                penalty=8,
+            )
 
-    year = match.group(0)
-
-    return PatternFinding(
-        code="common_year",
-        message="yaygın yıl tespit edildi",
-        severity="medium",
-        penalty=8 if _is_strong_context(password) else 14,
-    )
+    return None
 
 
 def detect_date_pattern(password: Optional[str]) -> Optional[PatternFinding]:
@@ -200,7 +194,7 @@ def detect_date_pattern(password: Optional[str]) -> Optional[PatternFinding]:
     if re.search(r"(?<!\d)\d{8}(?!\d)", password):
         return PatternFinding(
             code="date_pattern",
-            message="tarih benzeri sayı deseni tespit edildi",
+            message="Tarih benzeri sayı deseni tespit edildi",
             severity="medium",
             penalty=18,
         )
@@ -214,7 +208,7 @@ def detect_phone_pattern(password: Optional[str]) -> Optional[PatternFinding]:
     if re.search(r"(?<!\d)5\d{9}(?!\d)", password):
         return PatternFinding(
             code="phone_pattern",
-            message="telefon numarası benzeri yapı tespit edildi",
+            message="Telefon numarası benzeri yapı tespit edildi",
             severity="medium",
             penalty=20,
         )
@@ -229,7 +223,7 @@ def detect_common_name(password: Optional[str]) -> Optional[PatternFinding]:
         if name in password:
             return PatternFinding(
                 code="common_name",
-                message="yaygın isim tespit edildi",
+                message=f"Yaygın isim tespit edildi: {name}",
                 severity="medium",
                 penalty=15,
             )
@@ -238,16 +232,30 @@ def detect_common_name(password: Optional[str]) -> Optional[PatternFinding]:
 
 
 def detect_common_word(password: Optional[str]) -> Optional[PatternFinding]:
-    password = _safe_password(password).lower()
+    raw_password = _safe_password(password)
+    password = raw_password.lower()
 
     for word in COMMON_WORDS:
-        if word in password:
+        if word not in password:
+            continue
+
+        direct_word = password == word
+        word_with_digits = password.startswith(word) and password[len(word):].isdigit()
+
+        if direct_word or word_with_digits:
             return PatternFinding(
                 code="common_word",
-                message="yaygın kelime tespit edildi",
+                message=f"Yaygın parola kelimesi tespit edildi: {word} (yaygın kelime)",
                 severity="high",
-                penalty=35 if len(password) <= 10 else 18,
+                penalty=35,
             )
+
+        return PatternFinding(
+            code="embedded_common_word",
+            message=f"Yaygın parola kelimesi gömülü olarak tespit edildi: {word} (yaygın kelime)",
+            severity="medium",
+            penalty=18,
+        )
 
     return None
 
@@ -273,8 +281,8 @@ def detect_only_letters(password: Optional[str]) -> Optional[PatternFinding]:
         return PatternFinding(
             code="only_letters",
             message="yalnızca harflerden oluşuyor",
-            severity="high",
-            penalty=35 if len(password) <= 10 else 25,
+            severity="medium",
+            penalty=25,
         )
 
     return None
@@ -294,125 +302,37 @@ _DETECTORS = [
 ]
 
 
-def _normalize_finding(result: Optional[object]) -> Optional[PatternFinding]:
-    if result is None:
-        return None
-
-    if isinstance(result, PatternFinding):
-        return result
-
-    if isinstance(result, str):
-        return PatternFinding(
-            code="generic_pattern",
-            message=result,
-            severity=_severity_for_pattern(result),
-            penalty=_penalty_for_pattern(result, ""),
-        )
-
-    return None
-
-
 def _deduplicate_findings(findings: List[PatternFinding]) -> List[PatternFinding]:
-    seen_messages = set()
-    unique_findings: List[PatternFinding] = []
+    seen_codes = set()
+    unique: List[PatternFinding] = []
 
     for finding in findings:
-        if finding.message in seen_messages:
+        if finding.code in seen_codes:
             continue
 
-        seen_messages.add(finding.message)
-        unique_findings.append(finding)
+        seen_codes.add(finding.code)
+        unique.append(finding)
 
-    return unique_findings
+    return unique
+
+
+def _collect_findings(password: Optional[str]) -> List[PatternFinding]:
+    password = _safe_password(password)
+    findings: List[PatternFinding] = []
+
+    for detector in _DETECTORS:
+        result = detector(password)
+        if result is not None:
+            findings.append(result)
+
+    return _deduplicate_findings(findings)
 
 
 def detect_patterns(password: Optional[str]) -> List[str]:
-    password = _safe_password(password)
-    findings: List[PatternFinding] = []
-
-    for detector in _DETECTORS:
-        finding = _normalize_finding(detector(password))
-        if finding is not None:
-            findings.append(finding)
-
-    return [finding.message for finding in _deduplicate_findings(findings)]
-
-
-def _severity_for_pattern(pattern: str) -> str:
-    pattern = pattern.lower()
-
-    if (
-        "yalnızca" in pattern
-        or "yaygın kelime" in pattern
-        or "klavye deseni" in pattern
-    ):
-        return "high"
-
-    if (
-        "ardışık" in pattern
-        or "tekrarlı" in pattern
-        or "yaygın yıl" in pattern
-        or "yaygın isim" in pattern
-        or "tarih" in pattern
-        or "telefon" in pattern
-    ):
-        return "medium"
-
-    return "low"
-
-
-def _penalty_for_pattern(pattern: str, password: str) -> int:
-    pattern_lower = pattern.lower()
-    password = _safe_password(password)
-    length = len(password)
-    strong_context = _is_strong_context(password)
-
-    if "yalnızca rakamlardan" in pattern_lower:
-        return 45 if length <= 8 else 30
-
-    if "yalnızca harflerden" in pattern_lower:
-        return 35 if length <= 10 else 25
-
-    if "yaygın kelime" in pattern_lower:
-        return 35 if length <= 10 else 18
-
-    if "klavye deseni" in pattern_lower:
-        return 35 if length <= 10 else 18
-
-    if "ardışık" in pattern_lower:
-        if strong_context:
-            return 8
-        return 30 if length <= 8 else 14
-
-    if "tekrarlı" in pattern_lower:
-        return 20 if length <= 10 else 10
-
-    if "yaygın yıl" in pattern_lower:
-        return 8 if strong_context else 14
-
-    if "yaygın isim" in pattern_lower:
-        return 15
-
-    if "tarih" in pattern_lower:
-        return 18
-
-    if "telefon" in pattern_lower:
-        return 20
-
-    return 10
+    return [finding.message for finding in _collect_findings(password)]
 
 
 def detect_pattern_details(password: Optional[str]) -> List[Dict[str, Any]]:
-    password = _safe_password(password)
-    findings: List[PatternFinding] = []
-
-    for detector in _DETECTORS:
-        finding = _normalize_finding(detector(password))
-        if finding is not None:
-            findings.append(finding)
-
-    unique_findings = _deduplicate_findings(findings)
-
     return [
         {
             "code": finding.code,
@@ -421,5 +341,5 @@ def detect_pattern_details(password: Optional[str]) -> List[Dict[str, Any]]:
             "severity": finding.severity,
             "penalty": int(finding.penalty),
         }
-        for finding in unique_findings
+        for finding in _collect_findings(password)
     ]
