@@ -11,8 +11,8 @@ Score range:
 100 -> very strong
 """
 
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, Optional
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List, Optional, Tuple
 import re
 
 try:
@@ -28,13 +28,28 @@ class RiskScoreResult:
     lstm_score: Optional[float]
     final_score: float
     security_level: str
-    feedback: list[str]
+    feedback: List[str]
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
 
 class HybridRiskScorer:
+    """
+    Hybrid password scorer.
+
+    The rule score evaluates visible password quality:
+    - length
+    - lowercase letters
+    - uppercase letters
+    - digits
+    - special characters
+    - character variety
+    - weak patterns
+
+    If an LSTM score is supplied, the final score combines rule score and LSTM score.
+    """
+
     def __init__(self, rule_weight: float = 0.7, lstm_weight: float = 0.3) -> None:
         if rule_weight < 0 or lstm_weight < 0:
             raise ValueError("Weights cannot be negative.")
@@ -51,10 +66,7 @@ class HybridRiskScorer:
         password: str,
         lstm_score: Optional[float] = None,
     ) -> RiskScoreResult:
-        if password is None:
-            password = ""
-
-        password = str(password)
+        password = "" if password is None else str(password)
 
         rule_score, feedback = self.calculate_rule_score(password)
 
@@ -81,14 +93,17 @@ class HybridRiskScorer:
             feedback=feedback,
         )
 
-    def calculate_rule_score(self, password: str) -> tuple[float, list[str]]:
-        if not password:
+    def calculate_rule_score(self, password: str) -> Tuple[float, List[str]]:
+        password = "" if password is None else str(password)
+
+        if password == "":
             return 0.0, ["Parola boş olamaz."]
 
         score = 0.0
-        feedback = []
+        feedback: List[str] = []
         length = len(password)
 
+        # Length score: max 30
         if length >= 16:
             score += 30
         elif length >= 12:
@@ -97,7 +112,9 @@ class HybridRiskScorer:
             score += 18
         elif length >= 6:
             score += 8
+            feedback.append("Parola en az 8 karakter olmalı.")
         else:
+            score += 0
             feedback.append("Parola en az 8 karakter olmalı.")
 
         has_lower = bool(re.search(r"[a-z]", password))
@@ -105,6 +122,7 @@ class HybridRiskScorer:
         has_digit = bool(re.search(r"\d", password))
         has_special = bool(re.search(r"[^a-zA-Z0-9]", password))
 
+        # Character group score: max 50
         if has_lower:
             score += 12
         else:
@@ -126,6 +144,8 @@ class HybridRiskScorer:
             feedback.append("Özel karakter ekleyin.")
 
         variety_count = sum([has_lower, has_upper, has_digit, has_special])
+
+        # Variety bonus: max 15
         if variety_count == 4:
             score += 15
         elif variety_count == 3:
@@ -133,12 +153,15 @@ class HybridRiskScorer:
         elif variety_count <= 1:
             score -= 10
 
+        # Long and diverse password bonus
         if length >= 12 and variety_count >= 3:
             score += 8
 
-        pattern_findings = detect_pattern_details(password)
-        total_penalty = sum(int(item["penalty"]) for item in pattern_findings)
+        # Pattern penalties
+        pattern_findings = self._safe_pattern_details(password)
+        total_penalty = sum(int(item.get("penalty", 0)) for item in pattern_findings)
 
+        # Do not over-penalize long and diverse passwords for small suffixes like "123".
         if self._is_strong_context(password):
             total_penalty = min(total_penalty, 12)
         elif length <= 8:
@@ -149,12 +172,16 @@ class HybridRiskScorer:
         score -= total_penalty
 
         for item in pattern_findings:
-            feedback.append(str(item["message"]))
+            message = item.get("message") or item.get("pattern")
+            if message:
+                feedback.append(str(message))
+
+        score = self._clamp(score, 0, 100)
 
         if score >= 80 and not feedback:
             feedback.append("Parola güçlü görünüyor.")
 
-        return self._clamp(score, 0, 100), feedback
+        return score, feedback
 
     def get_security_level(self, score: float) -> str:
         score = self._clamp(score, 0, 100)
@@ -169,7 +196,113 @@ class HybridRiskScorer:
             return "Güçlü"
         return "Çok Güçlü"
 
+    def _safe_pattern_details(self, password: str) -> List[Dict[str, Any]]:
+        """
+        Normalizes detect_pattern_details output.
+
+        Expected item format:
+        {
+            "pattern": "...",
+            "message": "...",
+            "severity": "low|medium|high",
+            "penalty": 0-100
+        }
+
+        This method keeps the scorer stable even if patterns.py omits penalty.
+        """
+
+        try:
+            raw_findings = detect_pattern_details(password)
+        except Exception:
+            return []
+
+        normalized: List[Dict[str, Any]] = []
+
+        for item in raw_findings or []:
+            if isinstance(item, str):
+                message = item
+                severity = self._infer_severity(message)
+                penalty = self._penalty_from_message(message, password)
+                normalized.append(
+                    {
+                        "pattern": message,
+                        "message": message,
+                        "severity": severity,
+                        "penalty": penalty,
+                    }
+                )
+                continue
+
+            if isinstance(item, dict):
+                message = str(item.get("message") or item.get("pattern") or "")
+                severity = str(item.get("severity") or self._infer_severity(message))
+                penalty = item.get("penalty")
+
+                if penalty is None:
+                    penalty = self._penalty_from_message(message, password)
+
+                normalized.append(
+                    {
+                        "pattern": str(item.get("pattern") or message),
+                        "message": message,
+                        "severity": severity,
+                        "penalty": int(penalty),
+                    }
+                )
+
+        return normalized
+
+    def _penalty_from_message(self, message: str, password: str) -> int:
+        message_lower = message.lower()
+        password = "" if password is None else str(password)
+        length = len(password)
+
+        strong_context = self._is_strong_context(password)
+
+        if "yalnızca" in message_lower:
+            return 35
+
+        if "yaygın kelime" in message_lower:
+            return 30 if length <= 10 else 18
+
+        if "klavye deseni" in message_lower:
+            return 28 if length <= 10 else 14
+
+        if "ardışık" in message_lower:
+            if strong_context:
+                return 8
+            return 28 if length <= 8 else 14
+
+        if "tekrarlı" in message_lower or "tekrar" in message_lower:
+            return 18 if length <= 10 else 10
+
+        if "yaygın yıl" in message_lower:
+            return 8 if strong_context else 14
+
+        return 10
+
+    def _infer_severity(self, message: str) -> str:
+        message_lower = message.lower()
+
+        if (
+            "yalnızca" in message_lower
+            or "yaygın kelime" in message_lower
+            or "klavye deseni" in message_lower
+        ):
+            return "high"
+
+        if (
+            "ardışık" in message_lower
+            or "tekrarlı" in message_lower
+            or "yaygın yıl" in message_lower
+        ):
+            return "medium"
+
+        return "low"
+
     def _is_strong_context(self, password: str) -> bool:
+        password = "" if password is None else str(password)
+
         return (
             len(password) >= 10
             and bool(re.search(r"[a-z]", password))
