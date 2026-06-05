@@ -408,6 +408,46 @@ def analyze_rules(
     """
 
     password = _normalize_password(password)
+    if not password:
+        checks = {
+            "length": check_length(password, min_length, max_length),
+            "uppercase": check_uppercase(password),
+            "lowercase": check_lowercase(password),
+            "digits": check_digits(password),
+            "special_chars": check_special_chars(password),
+            "repeated_characters": {
+                "passed": False,
+                "details": "Parola boş olduğu için tekrarlı karakter kontrolü yapılamadı",
+                "matched_pattern": None,
+            },
+            "sequential_patterns": {
+                "passed": False,
+                "details": "Parola boş olduğu için ardışık desen kontrolü yapılamadı",
+                "matched_patterns": [],
+            },
+            "common_words": {
+                "passed": False,
+                "details": "Parola boş olduğu için yaygın kelime kontrolü yapılamadı",
+                "matched_words": [],
+            },
+            "character_diversity": check_character_diversity(password),
+            "only_letters_or_digits": check_only_letters_or_digits(password),
+        }
+
+        return {
+            "password": password,
+            "checks": checks,
+            "passed_count": 0,
+            "total_checks": len(checks),
+            "score": 0,
+            "security_level": "Çok Zayıf",
+            "all_passed": False,
+            "details": [
+                f"✗ {check['details']}"
+                for check in checks.values()
+            ],
+            "recommendations": _build_recommendations(checks),
+        }
 
     if password == "":
         return {

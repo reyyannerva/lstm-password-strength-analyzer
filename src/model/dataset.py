@@ -1,4 +1,4 @@
-﻿"""
+"""
 Password dataset and DataLoader utilities.
 
 This module prepares password sequences for LSTM language-model training.
@@ -27,11 +27,13 @@ class PasswordDataset(Dataset):
 
     Supports both `seq_len` and `max_length` for backward compatibility.
 
+    If `max_length` is provided, it takes priority over `seq_len`.
+
     Args:
         passwords: Password strings.
-        tokenizer: Object with an encode(password) method.
+        tokenizer: Tokenizer object with an encode(password) method.
         seq_len: Maximum encoded sequence length.
-        max_length: Alias for seq_len, used by older/newer tests.
+        max_length: Backward-compatible alias for seq_len.
         pad_token_id: Token id used for padding.
     """
 
@@ -54,6 +56,11 @@ class PasswordDataset(Dataset):
 
         effective_seq_len = max_length if max_length is not None else seq_len
 
+        if effective_seq_len is None:
+            raise ValueError("seq_len/max_length cannot be None")
+
+        effective_seq_len = int(effective_seq_len)
+
         if effective_seq_len < 2:
             raise ValueError("seq_len/max_length must be at least 2")
 
@@ -62,9 +69,10 @@ class PasswordDataset(Dataset):
             for password in passwords
             if str(password).strip()
         ]
+
         self.tokenizer = tokenizer
-        self.seq_len = int(effective_seq_len)
-        self.max_length = self.seq_len
+        self.seq_len = effective_seq_len
+        self.max_length = effective_seq_len
         self.pad_token_id = int(pad_token_id)
 
     def __len__(self) -> int:
@@ -113,6 +121,21 @@ def create_dataloader(
 ) -> DataLoader:
     """
     Create a PyTorch DataLoader for password training.
+
+    Supports both `seq_len` and `max_length` for compatibility.
+
+    Args:
+        passwords: Password strings.
+        tokenizer: Tokenizer object with an encode(password) method.
+        batch_size: Number of samples per batch.
+        seq_len: Maximum encoded sequence length.
+        max_length: Optional alias for seq_len. Takes priority when provided.
+        pad_token_id: Padding token id.
+        shuffle: Whether to shuffle the dataset.
+        num_workers: DataLoader worker count.
+
+    Returns:
+        DataLoader that yields input and target batches.
     """
 
     dataset = PasswordDataset(
