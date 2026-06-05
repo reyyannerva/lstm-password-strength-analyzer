@@ -125,3 +125,38 @@ def generate_multiple(length=DEFAULT_LENGTH, count=DEFAULT_COUNT):
             })
 
     return results
+
+
+
+def _meets_criteria(
+    password: str,
+    use_uppercase: bool = True,
+    use_lowercase: bool = True,
+    use_digits: bool = True,
+    use_special: bool = True,
+) -> bool:
+    """
+    Backward-compatible helper used by tests.
+
+    Returns True if the given password satisfies the requested character
+    criteria.
+    """
+
+    if password is None:
+        return False
+
+    password = str(password)
+
+    if use_uppercase and not any(char.isupper() for char in password):
+        return False
+
+    if use_lowercase and not any(char.islower() for char in password):
+        return False
+
+    if use_digits and not any(char.isdigit() for char in password):
+        return False
+
+    if use_special and not any(not char.isalnum() for char in password):
+        return False
+
+    return True
