@@ -1,42 +1,57 @@
 """
 Weak password pattern detection module.
 
-This module detects risky but context-aware password patterns.
-It is intentionally calibrated so that a strong password containing
-a small pattern such as "123" is penalized mildly, not completely rejected.
+This module detects predictable password patterns such as:
+- repeated characters
+- sequential characters
+- keyboard patterns
+- common years
+- common weak words
+- digit-only passwords
+- letter-only passwords
+
+Public API:
+- detect_patterns(password) -> list[str]
+- detect_pattern_details(password) -> list[dict]
+
+The string outputs are intentionally Turkish because tests, API feedback,
+and frontend messages rely on these phrases.
 """
 
 import re
-from dataclasses import dataclass, asdict
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 
-@dataclass
-class PatternFinding:
-    code: str
-    message: str
-    severity: str
-    penalty: int
-
-    def to_dict(self) -> Dict[str, object]:
-        return asdict(self)
-
+KEYBOARD_ROWS = [
+    "qwertyuiop",
+    "asdfghjkl",
+    "zxcvbnm",
+    "1234567890",
+]
 
 COMMON_WORDS = [
-    "password", "parola", "qwerty", "letmein", "welcome",
-    "admin", "login", "iloveyou", "monkey", "dragon",
-    "master", "sunshine", "princess",
+    "password",
+    "parola",
+    "admin",
+    "qwerty",
+    "login",
+    "welcome",
+    "letmein",
+    "iloveyou",
+    "root",
 ]
 
-COMMON_YEARS = [str(year) for year in range(1950, 2031)]
-
-KEYBOARD_PATTERNS = [
-    "qwerty", "asdf", "zxcv", "qaz", "wsx", "123456",
-    "abcdef", "abcd",
-]
+COMMON_YEARS_PATTERN = re.compile(r"(19|20)\d{2}")
+REPEATED_CHARS_PATTERN = re.compile(r"(.)\1{2,}")
 
 
-def _is_embedded_in_strong_password(password: str) -> bool:
+def _safe_password(password: Optional[str]) -> str:
+    if password is None:
+        return ""
+    return str(password)
+
+
+def _is_strong_context(password: str) -> bool:
     return (
         len(password) >= 10
         and bool(re.search(r"[a-z]", password))
@@ -46,155 +61,177 @@ def _is_embedded_in_strong_password(password: str) -> bool:
     )
 
 
-def detect_repeated_chars(password: str) -> PatternFinding | None:
-    if re.search(r"(.)\1{2,}", password):
-        return PatternFinding(
-            code="repeated_chars",
-            message="Tekrarlayan karakterler içeriyor.",
-            severity="medium",
-            penalty=10,
-        )
-    return None
+def detect_repeated_chars(password: Optional[str]) -> Optional[str]:
+    password = _safe_password(password)
 
-
-def detect_sequential_chars(password: str) -> PatternFinding | None:
-    lowered = password.lower()
-
-    if len(password) <= 6 and re.fullmatch(r"(123456|12345|1234|123|abcdef|abcd|abc)", lowered):
-        return PatternFinding(
-            code="simple_sequence",
-            message="Parola büyük ölçüde ardışık karakterlerden oluşuyor.",
-            severity="high",
-            penalty=35,
-        )
-
-    for i in range(len(lowered) - 2):
-        trio = lowered[i:i + 3]
-        if len(set(trio)) == 3:
-            if (
-                ord(trio[1]) - ord(trio[0]) == 1
-                and ord(trio[2]) - ord(trio[1]) == 1
-            ):
-                return PatternFinding(
-                    code="embedded_sequence",
-                    message="Kısa bir ardışık karakter deseni içeriyor.",
-                    severity="low" if _is_embedded_in_strong_password(password) else "medium",
-                    penalty=5 if _is_embedded_in_strong_password(password) else 12,
-                )
+    if REPEATED_CHARS_PATTERN.search(password):
+        return "tekrarlı karakter tespit edildi"
 
     return None
 
 
-def detect_keyboard_pattern(password: str) -> PatternFinding | None:
-    lowered = password.lower()
+def detect_sequential_chars(password: Optional[str]) -> Optional[str]:
+    password = _safe_password(password).lower()
 
-    for pattern in KEYBOARD_PATTERNS:
-        if pattern in lowered:
-            if lowered == pattern or len(password) <= len(pattern) + 2:
-                return PatternFinding(
-                    code="keyboard_pattern",
-                    message=f"Klavye deseni içeriyor: {pattern}",
-                    severity="high",
-                    penalty=30,
-                )
+    for i in range(len(password) - 2):
+        trio = password[i:i + 3]
 
-            return PatternFinding(
-                code="embedded_keyboard_pattern",
-                message=f"Kısa klavye deseni içeriyor: {pattern}",
-                severity="medium",
-                penalty=12,
-            )
+        if not trio.isalnum():
+            continue
+
+        if (
+            ord(trio[1]) - ord(trio[0]) == 1
+            and ord(trio[2]) - ord(trio[1]) == 1
+        ):
+            return "ardışık karakter tespit edildi"
+
+        if (
+            ord(trio[0]) - ord(trio[1]) == 1
+            and ord(trio[1]) - ord(trio[2]) == 1
+        ):
+            return "ardışık karakter tespit edildi"
 
     return None
 
 
-def detect_common_year(password: str) -> PatternFinding | None:
-    for year in COMMON_YEARS:
-        if year in password:
-            return PatternFinding(
-                code="common_year",
-                message=f"Yaygın yıl ifadesi içeriyor: {year}",
-                severity="low",
-                penalty=5,
-            )
+def detect_keyboard_pattern(password: Optional[str]) -> Optional[str]:
+    password = _safe_password(password).lower()
+
+    for row in KEYBOARD_ROWS:
+        for size in range(4, 2, -1):
+            for i in range(len(row) - size + 1):
+                chunk = row[i:i + size]
+                reverse_chunk = chunk[::-1]
+
+                if chunk in password or reverse_chunk in password:
+                    return "klavye deseni tespit edildi"
+
     return None
 
 
-def detect_common_word(password: str) -> PatternFinding | None:
-    lowered = password.lower()
+def detect_common_year(password: Optional[str]) -> Optional[str]:
+    password = _safe_password(password)
+
+    if COMMON_YEARS_PATTERN.search(password):
+        return "yaygın yıl tespit edildi"
+
+    return None
+
+
+def detect_common_word(password: Optional[str]) -> Optional[str]:
+    password = _safe_password(password).lower()
 
     for word in COMMON_WORDS:
-        if word in lowered:
-            if lowered == word or lowered in {f"{word}123", f"{word}1234", f"{word}!"}:
-                return PatternFinding(
-                    code="common_word",
-                    message=f"Yaygın parola kelimesi içeriyor: {word}",
-                    severity="high",
-                    penalty=35,
-                )
-
-            return PatternFinding(
-                code="embedded_common_word",
-                message=f"Yaygın kelime içeriyor: {word}",
-                severity="medium",
-                penalty=15,
-            )
+        if word in password:
+            return "yaygın kelime tespit edildi"
 
     return None
 
 
-def detect_only_digits(password: str) -> PatternFinding | None:
-    if password.isdigit():
-        return PatternFinding(
-            code="only_digits",
-            message="Parola yalnızca rakamlardan oluşuyor.",
-            severity="high",
-            penalty=35,
-        )
+def detect_only_digits(password: Optional[str]) -> Optional[str]:
+    password = _safe_password(password)
+
+    if password and password.isdigit():
+        return "yalnızca rakamlardan oluşuyor"
+
     return None
 
 
-def detect_only_letters(password: str) -> PatternFinding | None:
-    if password.isalpha():
-        return PatternFinding(
-            code="only_letters",
-            message="Parola yalnızca harflerden oluşuyor.",
-            severity="medium",
-            penalty=18,
-        )
+def detect_only_letters(password: Optional[str]) -> Optional[str]:
+    password = _safe_password(password)
+
+    if password and password.isalpha():
+        return "yalnızca harflerden oluşuyor"
+
     return None
 
 
 _DETECTORS = [
+    detect_repeated_chars,
+    detect_sequential_chars,
+    detect_keyboard_pattern,
+    detect_common_year,
+    detect_common_word,
     detect_only_digits,
     detect_only_letters,
-    detect_common_word,
-    detect_keyboard_pattern,
-    detect_sequential_chars,
-    detect_repeated_chars,
-    detect_common_year,
 ]
 
 
-def detect_pattern_details(password: str) -> List[Dict[str, object]]:
-    findings = []
-
-    if password is None:
-        password = ""
-
-    password = str(password)
+def detect_patterns(password: Optional[str]) -> List[str]:
+    password = _safe_password(password)
+    found: List[str] = []
 
     for detector in _DETECTORS:
         result = detector(password)
-        if result:
-            findings.append(result.to_dict())
+        if result and result not in found:
+            found.append(result)
 
-    return findings
+    return found
 
 
-def detect_patterns(password: str) -> List[str]:
-    """
-    Backward-compatible helper.
-    Returns only pattern messages.
-    """
-    return [item["message"] for item in detect_pattern_details(password)]
+def _severity_for_pattern(pattern: str) -> str:
+    pattern = pattern.lower()
+
+    if (
+        "yalnızca" in pattern
+        or "yaygın kelime" in pattern
+        or "klavye deseni" in pattern
+    ):
+        return "high"
+
+    if (
+        "ardışık" in pattern
+        or "tekrarlı" in pattern
+        or "yaygın yıl" in pattern
+    ):
+        return "medium"
+
+    return "low"
+
+
+def _penalty_for_pattern(pattern: str, password: str) -> int:
+    pattern_lower = pattern.lower()
+    length = len(password)
+    strong_context = _is_strong_context(password)
+
+    if "yalnızca rakamlardan" in pattern_lower:
+        return 45 if length <= 8 else 30
+
+    if "yalnızca harflerden" in pattern_lower:
+        return 35 if length <= 10 else 25
+
+    if "yaygın kelime" in pattern_lower:
+        return 35 if length <= 10 else 18
+
+    if "klavye deseni" in pattern_lower:
+        return 35 if length <= 10 else 18
+
+    if "ardışık" in pattern_lower:
+        if strong_context:
+            return 8
+        return 30 if length <= 8 else 14
+
+    if "tekrarlı" in pattern_lower:
+        return 20 if length <= 10 else 10
+
+    if "yaygın yıl" in pattern_lower:
+        return 8 if strong_context else 14
+
+    return 10
+
+
+def detect_pattern_details(password: Optional[str]) -> List[Dict[str, Any]]:
+    password = _safe_password(password)
+    details: List[Dict[str, Any]] = []
+
+    for pattern in detect_patterns(password):
+        details.append(
+            {
+                "pattern": pattern,
+                "message": pattern,
+                "severity": _severity_for_pattern(pattern),
+                "penalty": _penalty_for_pattern(pattern, password),
+            }
+        )
+
+    return details

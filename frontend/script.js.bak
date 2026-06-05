@@ -1,4 +1,4 @@
-﻿const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8000";
 
 const passwordInput = document.getElementById("passwordInput");
 const analyzeBtn = document.getElementById("analyzeBtn");
@@ -17,11 +17,11 @@ const copyBtn = document.getElementById("copyBtn");
 const errorMsg = document.getElementById("errorMsg");
 
 const LEVEL_MAP = {
-  "Ã‡ok ZayÄ±f":  { cls: "very-weak",   bar: 95 },
-  "ZayÄ±f":      { cls: "weak",         bar: 75 },
+  "Çok Zayıf":  { cls: "very-weak",   bar: 95 },
+  "Zayıf":      { cls: "weak",         bar: 75 },
   "Orta":       { cls: "medium",       bar: 50 },
-  "GÃ¼Ã§lÃ¼":      { cls: "strong",       bar: 25 },
-  "Ã‡ok GÃ¼Ã§lÃ¼":  { cls: "very-strong",  bar: 8  },
+  "Güçlü":      { cls: "strong",       bar: 25 },
+  "Çok Güçlü":  { cls: "very-strong",  bar: 8  },
 };
 
 function showError(msg) {
@@ -64,7 +64,7 @@ function renderScore(data) {
 analyzeBtn.addEventListener("click", async () => {
   const pw = passwordInput.value;
   if (!pw.trim()) {
-    showError("LÃ¼tfen bir parola girin.");
+    showError("Lütfen bir parola girin.");
     return;
   }
   clearError();
@@ -78,13 +78,13 @@ analyzeBtn.addEventListener("click", async () => {
     });
     if (!res.ok) {
       const err = await res.json();
-      showError(err.detail || "Bir hata oluÅŸtu.");
+      showError(err.detail || "Bir hata oluştu.");
       return;
     }
     const data = await res.json();
     renderScore(data);
   } catch {
-    showError("API'ye baÄŸlanÄ±lamadÄ±. Backend Ã§alÄ±ÅŸÄ±yor mu?");
+    showError("API'ye bağlanılamadı. Backend çalışıyor mu?");
   }
 });
 
@@ -95,14 +95,14 @@ generateBtn.addEventListener("click", async () => {
   try {
     const res = await fetch(`${API_BASE}/generate`, { method: "POST" });
     if (!res.ok) {
-      showError("Parola Ã¼retilirken hata oluÅŸtu.");
+      showError("Parola üretilirken hata oluştu.");
       return;
     }
     const data = await res.json();
     generatedPassword.textContent = data.password;
     generatedSection.classList.remove("hidden");
   } catch {
-    showError("API'ye baÄŸlanÄ±lamadÄ±. Backend Ã§alÄ±ÅŸÄ±yor mu?");
+    showError("API'ye bağlanılamadı. Backend çalışıyor mu?");
   }
 });
 
@@ -110,7 +110,7 @@ copyBtn.addEventListener("click", () => {
   const pw = generatedPassword.textContent;
   if (pw) {
     navigator.clipboard.writeText(pw).then(() => {
-      copyBtn.textContent = "KopyalandÄ±!";
+      copyBtn.textContent = "Kopyalandı!";
       setTimeout(() => { copyBtn.textContent = "Kopyala"; }, 2000);
     });
   }
@@ -119,25 +119,9 @@ copyBtn.addEventListener("click", () => {
 toggleBtn.addEventListener("click", () => {
   const isHidden = passwordInput.type === "password";
   passwordInput.type = isHidden ? "text" : "password";
-  toggleBtn.textContent = isHidden ? "ğŸ™ˆ" : "ğŸ‘";
+  toggleBtn.textContent = isHidden ? "🙈" : "👁";
 });
 
 passwordInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") analyzeBtn.click();
 });
-
-async function explainPassword(password) {
-  const response = await fetch(`${API_BASE}/explain`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ password })
-  });
-
-  if (!response.ok) {
-    throw new Error("Explain API request failed");
-  }
-
-  return await response.json();
-}
