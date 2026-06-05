@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parola Güvenlik Analizi</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Theme Toggle -->
+  <button id="themeToggle" class="theme-toggle" title="Tema değiştir">🌙</button>
+
+  <div class="container">
+    <header class="header">
+      <h1>🔐 Parola Güvenlik Analizi</h1>
+      <p class="subtitle">LSTM tabanlı akıllı parola analizi</p>
+    </header>
+
+    <!-- Input Section -->
+    <section class="input-section">
+      <div class="input-wrapper">
+        <input
+          type="password"
+          id="passwordInput"
+          placeholder="Parolanızı girin..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button id="toggleVisibility" class="toggle-btn" title="Göster/Gizle" aria-label="Parolayı göster/gizle">👁</button>
+      </div>
+
+      <div class="button-group">
+        <button id="analyzeBtn" class="btn btn-primary">
+          <span class="btn-icon">🔍</span> Analiz Et
+        </button>
+        <button id="generateBtn" class="btn btn-secondary">
+          <span class="btn-icon">✨</span> Güvenli Parola Üret
+        </button>
+      </div>
+    </section>
+
+    <!-- Dashboard: Karakter Kriterleri -->
+    <section id="dashboardSection" class="dashboard hidden">
+      <div class="dash-card" id="dash-length">
+        <span class="dash-icon">📏</span>
+        <span class="dash-label">Uzunluk</span>
+        <span class="dash-value" id="val-length">0</span>
+      </div>
+      <div class="dash-card" id="dash-upper">
+        <span class="dash-icon">🔠</span>
+        <span class="dash-label">Büyük Harf</span>
+        <span class="dash-check" id="val-upper">✗</span>
+      </div>
+      <div class="dash-card" id="dash-lower">
+        <span class="dash-icon">🔡</span>
+        <span class="dash-label">Küçük Harf</span>
+        <span class="dash-check" id="val-lower">✗</span>
+      </div>
+      <div class="dash-card" id="dash-digit">
+        <span class="dash-icon">🔢</span>
+        <span class="dash-label">Rakam</span>
+        <span class="dash-check" id="val-digit">✗</span>
+      </div>
+      <div class="dash-card" id="dash-special">
+        <span class="dash-icon">💠</span>
+        <span class="dash-label">Özel Karakter</span>
+        <span class="dash-check" id="val-special">✗</span>
+      </div>
+      <div class="dash-card" id="dash-patterns">
+        <span class="dash-icon">⚠️</span>
+        <span class="dash-label">Riskli Desen</span>
+        <span class="dash-value" id="val-patterns">0</span>
+      </div>
+    </section>
+
+    <!-- Score Result -->
+    <section id="resultSection" class="result-section hidden">
+      <div class="score-card">
+        <div class="score-header">
+          <span id="securityLevel" class="security-level"></span>
+          <span id="riskScore" class="risk-score"></span>
+        </div>
+
+        <div class="progress-container">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+
+        <p id="scoreMessage" class="score-message"></p>
+
+        <div id="reasonsSection" class="info-section hidden">
+          <h3>⚠ Risk Nedenleri</h3>
+          <ul id="reasonsList" class="info-list"></ul>
+        </div>
+
+        <div id="suggestionsSection" class="info-section hidden">
+          <h3>💡 İyileştirme Önerileri</h3>
+          <ul id="suggestionsList" class="info-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Generated Password -->
+    <section id="generatedSection" class="generated-section hidden">
+      <h3>✅ Üretilen Güvenli Parola</h3>
+      <div class="generated-wrapper">
+        <code id="generatedPassword"></code>
+        <button id="copyBtn" class="btn btn-copy">📋 Kopyala</button>
+      </div>
+
+      <!-- Alternatif Parolalar -->
+      <div id="alternativesSection" class="alternatives hidden">
+        <p class="alt-title">Diğer seçenekler:</p>
+        <div id="alternativesList" class="alt-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
