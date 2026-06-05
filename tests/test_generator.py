@@ -66,3 +66,34 @@ def test_generate_password_multiple_calls_produce_unique_results():
     second = generate_password()["password"]
 
     assert first != second
+
+def test_generate_password_boundary_length_8():
+    result = generate_password(length=8)
+
+    assert result["length"] == 8
+    assert len(result["password"]) == 8
+    assert result["weak_patterns"] == []
+
+
+def test_generate_password_large_length_128():
+    result = generate_password(length=128)
+
+    assert result["length"] == 128
+    assert len(result["password"]) == 128
+    assert result["weak_patterns"] == []
+
+
+def test_generated_password_is_not_common_issue_sample():
+    weak_samples = {
+        "123456",
+        "password123",
+        "Password123",
+        "qwerty123",
+        "admin123",
+        "111111",
+    }
+
+    result = generate_password(length=16)
+
+    assert result["password"] not in weak_samples
+    assert result["weak_patterns"] == []

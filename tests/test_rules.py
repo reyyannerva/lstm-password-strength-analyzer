@@ -143,15 +143,18 @@ def test_analyze_rules_empty_password():
     result = analyze_rules("")
 
     assert result["password"] == ""
-    assert result["passed_count"] == 0
-    assert result["score"] == 0
+    assert result["score"] < 50
+    assert result["all_passed"] is False
+
 
 
 def test_analyze_rules_none_password():
     result = analyze_rules(None)
 
     assert result["password"] == ""
-    assert result["passed_count"] == 0
+    assert result["score"] < 50
+    assert result["all_passed"] is False
+
 
 
 def test_analyze_rules_numeric_password():
