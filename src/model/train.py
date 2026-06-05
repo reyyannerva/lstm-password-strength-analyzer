@@ -14,6 +14,7 @@ from typing import Dict, Optional
 
 import torch
 import torch.nn as nn
+import math
 
 from src.model.evaluate import evaluate
 
@@ -94,6 +95,7 @@ def train(
     grad_clip: Optional[float] = None,
     checkpoint_path: Optional[str] = None,
     log_path: Optional[str] = None,
+    early_stopping_patience: Optional[int] = None,
 ) -> Dict[str, list]:
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -108,21 +110,56 @@ def train(
 
     history: Dict[str, list] = {
         "train_loss": [],
+        "train_perplexity": [],
         "val_loss": [],
         "val_perplexity": [],
+        "val_accuracy": [],
+        "best_val_loss": [],
+        "best_epoch": [],
     }
+    best_val_loss = float("inf")
+    epochs_without_improvement = 0
 
     for epoch in range(1, epochs + 1):
         train_loss = train_epoch(model, train_loader, optimizer, criterion, device, grad_clip)
         history["train_loss"].append(train_loss)
+        history["train_perplexity"].append(
+            math.exp(train_loss) if train_loss != float("inf") else float("inf")
+        )
 
         if val_loader is not None:
             metrics = evaluate(model, val_loader, device)
             history["val_loss"].append(metrics["loss"])
             history["val_perplexity"].append(metrics["perplexity"])
+            history["val_accuracy"].append(metrics.get("accuracy", 0.0))
+
+            if early_stopping_patience is not None:
+                current_val_loss = metrics["loss"]
+
+                if current_val_loss < best_val_loss:
+                    best_val_loss = current_val_loss
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                if epochs_without_improvement >= early_stopping_patience:
+                    break
         else:
             history["val_loss"].append(None)
             history["val_perplexity"].append(None)
+            history["val_accuracy"].append(None)
+        
+        valid_losses = [loss for loss in history["val_loss"] if loss is not None]
+
+        if valid_losses:
+            best_val_loss = min(valid_losses)
+            best_epoch = history["val_loss"].index(best_val_loss) + 1
+        else:
+            best_val_loss = None
+            best_epoch = None
+
+        history["best_val_loss"].append(best_val_loss)
+        history["best_epoch"].append(best_epoch)
 
         if checkpoint_path is not None:
             _save_checkpoint(model, optimizer, epoch, train_loss, checkpoint_path)
@@ -131,3 +168,75 @@ def train(
             _save_training_log(history, log_path)
 
     return history
+
+def plot_training_history(history: Dict[str, list], output_dir: str = "experiments") -> Dict[str, str]:
+    """
+    Save training evaluation charts.
+
+    Generated charts:
+    - training_loss.png
+    - training_perplexity.png
+    - validation_accuracy.png
+    """
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:
+        raise ImportError("matplotlib is required to generate training charts.") from exc
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    epochs = list(range(1, len(history.get("train_loss", [])) + 1))
+    saved_paths: Dict[str, str] = {}
+
+    def _save_line_chart(filename: str, title: str, ylabel: str, series: Dict[str, list]) -> None:
+        plt.figure(figsize=(8, 5))
+
+        for label, values in series.items():
+            clean_values = [
+                value if value is not None and value != float("inf") else None
+                for value in values
+            ]
+            plt.plot(epochs, clean_values, marker="o", label=label)
+
+        plt.title(title)
+        plt.xlabel("Epoch")
+        plt.ylabel(ylabel)
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.tight_layout()
+
+        path = os.path.join(output_dir, filename)
+        plt.savefig(path, dpi=150)
+        plt.close()
+        saved_paths[filename] = path
+
+    _save_line_chart(
+        "training_loss.png",
+        "Training and Validation Loss",
+        "Loss",
+        {
+            "Train Loss": history.get("train_loss", []),
+            "Validation Loss": history.get("val_loss", []),
+        },
+    )
+
+    _save_line_chart(
+        "training_perplexity.png",
+        "Training and Validation Perplexity",
+        "Perplexity",
+        {
+            "Train Perplexity": history.get("train_perplexity", []),
+            "Validation Perplexity": history.get("val_perplexity", []),
+        },
+    )
+
+    _save_line_chart(
+        "validation_accuracy.png",
+        "Validation Accuracy",
+        "Accuracy",
+        {
+            "Validation Accuracy": history.get("val_accuracy", []),
+        },
+    )
+
+    return saved_paths

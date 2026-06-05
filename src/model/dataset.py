@@ -1,7 +1,8 @@
 """
 Password dataset and DataLoader utilities.
 
-This module prepares password sequences for LSTM training.
+This module prepares password sequences for LSTM language-model training.
+
 For each password, it creates:
 
 input_ids  = token ids except the last token
@@ -17,17 +18,25 @@ target  : [a, b, c, <eos>]
 from typing import List, Sequence, Tuple
 
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 
 class PasswordDataset(Dataset):
     """
     PyTorch Dataset for password language modeling.
 
+    This class is intentionally backward compatible with both parameter names:
+
+    - seq_len
+    - max_length
+
+    If max_length is provided, it takes priority over seq_len.
+
     Args:
-        passwords: List of password strings.
+        passwords: Password strings.
         tokenizer: Tokenizer object with an encode(password) method.
-        max_length: Maximum sequence length after encoding.
+        seq_len: Maximum encoded sequence length.
+        max_length: Backward-compatible alias for seq_len.
         pad_token_id: Token id used for padding.
     """
 
@@ -36,7 +45,7 @@ class PasswordDataset(Dataset):
         passwords: Sequence[str],
         tokenizer,
         seq_len: int = 64,
-        max_length=None,
+        max_length: int | None = None,
         pad_token_id: int = 0,
     ) -> None:
         if passwords is None:
@@ -48,17 +57,21 @@ class PasswordDataset(Dataset):
         if not hasattr(tokenizer, "encode"):
             raise TypeError("tokenizer must have an encode(password) method")
 
-        if seq_len < 2:
-            raise ValueError("seq_len must be at least 2")
+        effective_seq_len = max_length if max_length is not None else seq_len
 
-        self.passwords = [str(password).strip() for password in passwords if str(password).strip()]
+        if effective_seq_len < 2:
+            raise ValueError("seq_len/max_length must be at least 2")
+
+        self.passwords = [
+            str(password).strip()
+            for password in passwords
+            if str(password).strip()
+        ]
+
         self.tokenizer = tokenizer
-        # backward compatible name: seq_len is the public parameter expected by tests
-        if max_length is not None:
-            seq_len = max_length
-
-        self.seq_len = seq_len
-        self.pad_token_id = pad_token_id
+        self.seq_len = int(effective_seq_len)
+        self.max_length = int(effective_seq_len)
+        self.pad_token_id = int(pad_token_id)
 
     def __len__(self) -> int:
         return len(self.passwords)
@@ -71,6 +84,7 @@ class PasswordDataset(Dataset):
         if not isinstance(token_ids, list):
             token_ids = list(token_ids)
 
+        token_ids = [int(token_id) for token_id in token_ids]
         token_ids = token_ids[: self.seq_len]
 
         if len(token_ids) < 2:
@@ -100,7 +114,7 @@ def create_dataloader(
     tokenizer,
     batch_size: int = 32,
     seq_len: int = 64,
-    max_length=None,
+    max_length: int | None = None,
     pad_token_id: int = 0,
     shuffle: bool = True,
     num_workers: int = 0,
@@ -108,11 +122,14 @@ def create_dataloader(
     """
     Create a PyTorch DataLoader for password training.
 
+    This helper supports both seq_len and max_length for compatibility.
+
     Args:
-        passwords: List of password strings.
+        passwords: Password strings.
         tokenizer: Tokenizer object with an encode(password) method.
         batch_size: Number of samples per batch.
         seq_len: Maximum encoded sequence length.
+        max_length: Optional alias for seq_len. Takes priority when provided.
         pad_token_id: Padding token id.
         shuffle: Whether to shuffle the dataset.
         num_workers: DataLoader worker count.
@@ -120,13 +137,13 @@ def create_dataloader(
     Returns:
         DataLoader that yields input and target batches.
     """
-    if max_length is not None:
-        seq_len = max_length
+
+    effective_seq_len = max_length if max_length is not None else seq_len
 
     dataset = PasswordDataset(
         passwords=passwords,
         tokenizer=tokenizer,
-        seq_len=seq_len,
+        seq_len=effective_seq_len,
         pad_token_id=pad_token_id,
     )
 

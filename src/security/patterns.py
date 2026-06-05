@@ -27,7 +27,10 @@ COMMON_WORDS = [
     "admin", "login", "iloveyou", "monkey", "dragon",
     "master", "sunshine", "princess",
 ]
-
+COMMON_NAMES = [
+    "ahmet", "mehmet", "ali", "ayse", "ayşe", "fatma",
+    "john", "michael", "mike", "admin",
+]
 COMMON_YEARS = [str(year) for year in range(1950, 2031)]
 
 KEYBOARD_PATTERNS = [
@@ -100,7 +103,7 @@ def detect_keyboard_pattern(password: str) -> PatternFinding | None:
 
             return PatternFinding(
                 code="embedded_keyboard_pattern",
-                message=f"Kısa klavye deseni içeriyor: {pattern}",
+                message=f"Klavye deseni içeriyor: {pattern}",
                 severity="medium",
                 penalty=12,
             )
@@ -118,7 +121,40 @@ def detect_common_year(password: str) -> PatternFinding | None:
                 penalty=5,
             )
     return None
+def detect_date_pattern(password: str) -> PatternFinding | None:
+    if re.search(r"(?<!\d)\d{8}(?!\d)", password):
+        return PatternFinding(
+            code="date_pattern",
+            message="Tarih benzeri sayı deseni içeriyor.",
+            severity="medium",
+            penalty=18,
+        )
+    return None
 
+
+def detect_phone_pattern(password: str) -> PatternFinding | None:
+    if re.search(r"(?<!\d)5\d{9}(?!\d)", password):
+        return PatternFinding(
+            code="phone_pattern",
+            message="Telefon numarası benzeri yapı içeriyor.",
+            severity="medium",
+            penalty=20,
+        )
+    return None
+
+def detect_common_name(password: str) -> PatternFinding | None:
+    lowered = password.lower()
+
+    for name in COMMON_NAMES:
+        if name in lowered:
+            return PatternFinding(
+                code="common_name",
+                message=f"Yaygın isim içeriyor: {name}",
+                severity="medium",
+                penalty=15,
+            )
+
+    return None
 
 def detect_common_word(password: str) -> PatternFinding | None:
     lowered = password.lower()
@@ -169,10 +205,13 @@ _DETECTORS = [
     detect_only_digits,
     detect_only_letters,
     detect_common_word,
+    detect_common_name,
     detect_keyboard_pattern,
     detect_sequential_chars,
     detect_repeated_chars,
     detect_common_year,
+    detect_date_pattern,
+    detect_phone_pattern,
 ]
 
 

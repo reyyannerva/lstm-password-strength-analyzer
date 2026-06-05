@@ -183,3 +183,39 @@ def test_security_level_boundaries():
     assert scorer.get_security_level(79.99) == "Güçlü"
     assert scorer.get_security_level(80) == "Çok Güçlü"
     assert scorer.get_security_level(100) == "Çok Güçlü"
+
+def test_strong_password_with_small_embedded_pattern_keeps_high_score():
+    scorer = HybridRiskScorer()
+
+    result = scorer.score("Str0ng!Pass123")
+
+    assert result.final_score >= 70
+    assert result.security_level in {"Güçlü", "Çok Güçlü"}
+
+
+def test_very_weak_common_password_gets_low_score():
+    scorer = HybridRiskScorer()
+
+    result = scorer.score("password123")
+
+    assert result.final_score < 40
+    assert result.security_level in {"Çok Zayıf", "Zayıf"}
+
+
+def test_lstm_score_can_improve_final_score_when_rule_score_is_moderate():
+    scorer = HybridRiskScorer(rule_weight=0.7, lstm_weight=0.3)
+
+    without_lstm = scorer.score("Moderate123")
+    with_lstm = scorer.score("Moderate123", lstm_score=90)
+
+    assert with_lstm.final_score > without_lstm.final_score
+
+
+def test_lstm_score_is_clamped_to_valid_range():
+    scorer = HybridRiskScorer()
+
+    high = scorer.score("Str0ng!Password", lstm_score=150)
+    low = scorer.score("Str0ng!Password", lstm_score=-50)
+
+    assert high.lstm_score == 100
+    assert low.lstm_score == 0
