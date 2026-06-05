@@ -71,3 +71,31 @@ def run():
 
 if __name__ == "__main__":
     run()
+
+def analyze_dataset_quality(passwords):
+    """
+    Dataset quality statistics.
+    """
+
+    passwords = [str(p) for p in passwords if p]
+
+    if not passwords:
+        return {
+            "count": 0,
+            "avg_length": 0,
+            "min_length": 0,
+            "max_length": 0,
+            "unique_ratio": 0,
+        }
+
+    unique_count = len(set(passwords))
+
+    lengths = [len(p) for p in passwords]
+
+    return {
+        "count": len(passwords),
+        "avg_length": sum(lengths) / len(lengths),
+        "min_length": min(lengths),
+        "max_length": max(lengths),
+        "unique_ratio": unique_count / len(passwords),
+    }

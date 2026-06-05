@@ -1,5 +1,8 @@
 const API_BASE = "http://localhost:8000";
 
+const SCORE_ENDPOINT = `${API_BASE}/score`;
+const EXPLAIN_ENDPOINT = `${API_BASE}/explain`;
+const GENERATE_ENDPOINT = `${API_BASE}/generate`;
 const passwordInput = document.getElementById("passwordInput");
 const analyzeBtn = document.getElementById("analyzeBtn");
 const generateBtn = document.getElementById("generateBtn");
@@ -92,7 +95,7 @@ analyzeBtn.addEventListener("click", async () => {
   resultSection.classList.add("hidden");
 
   try {
-    const res = await fetch(`${API_BASE}/explain`, {
+    const res = await fetch(EXPLAIN_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: pw }),
@@ -114,7 +117,7 @@ generateBtn.addEventListener("click", async () => {
   generatedSection.classList.add("hidden");
 
   try {
-    const res = await fetch(`${API_BASE}/generate`, { method: "POST" });
+    const res = await fetch(GENERATE_ENDPOINT, { method: "POST" });
     if (!res.ok) {
       showError("Parola üretilirken hata oluştu.");
       return;

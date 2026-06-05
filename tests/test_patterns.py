@@ -209,3 +209,54 @@ def test_common_word_password123_is_more_risky_than_password_inside_complex_pass
     assert direct.penalty > embedded.penalty
     assert direct.severity == "high"
     assert embedded.severity == "medium"
+
+def test_detects_date_like_pattern():
+    patterns = detect_patterns("Ali01012024!")
+
+    assert any("Tarih benzeri" in item for item in patterns)
+
+
+def test_detects_phone_like_pattern():
+    patterns = detect_patterns("Pass5551234567!")
+
+    assert any("Telefon numarası" in item for item in patterns)
+
+
+def test_detects_common_name_pattern():
+    patterns = detect_patterns("Ahmet123!")
+
+    assert any("Yaygın isim" in item for item in patterns)
+
+
+def test_strong_password_with_short_sequence_is_not_over_penalized():
+    details = detect_pattern_details("Str0ng!abcPass")
+
+    sequence_findings = [
+        item for item in details
+        if item["code"] == "embedded_sequence"
+    ]
+
+    assert sequence_findings
+    assert sequence_findings[0]["severity"] == "low"
+    assert sequence_findings[0]["penalty"] <= 5
+
+
+def test_multiple_new_patterns_can_be_detected_together():
+    patterns = detect_patterns("mehmet15051999!")
+
+    assert any("Yaygın isim" in item for item in patterns)
+    assert any("Tarih benzeri" in item for item in patterns)
+
+def test_pattern_detection_performance_on_batch():
+    passwords = [
+        "password123",
+        "Qwerty123!",
+        "Str0ng!Pass123",
+        "mehmet15051999!",
+        "Pass5551234567!",
+    ] * 100
+
+    for password in passwords:
+        patterns = detect_patterns(password)
+
+        assert isinstance(patterns, list)

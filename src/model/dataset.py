@@ -36,6 +36,7 @@ class PasswordDataset(Dataset):
         passwords: Sequence[str],
         tokenizer,
         seq_len: int = 64,
+        max_length: int | None = None,
         pad_token_id: int = 0,
     ) -> None:
         if passwords is None:
@@ -49,6 +50,9 @@ class PasswordDataset(Dataset):
 
         if seq_len < 2:
             raise ValueError("seq_len must be at least 2")
+        if max_length is not None:
+            seq_len = max_length
+
 
         self.passwords = [str(password).strip() for password in passwords if str(password).strip()]
         self.tokenizer = tokenizer
@@ -96,6 +100,7 @@ def create_dataloader(
     tokenizer,
     batch_size: int = 32,
     seq_len: int = 64,
+    max_length: int | None = None,
     pad_token_id: int = 0,
     shuffle: bool = True,
     num_workers: int = 0,
@@ -119,7 +124,7 @@ def create_dataloader(
     dataset = PasswordDataset(
         passwords=passwords,
         tokenizer=tokenizer,
-        seq_len=seq_len,
+        seq_len=max_length if max_length is not None else seq_len,
         pad_token_id=pad_token_id,
     )
 
