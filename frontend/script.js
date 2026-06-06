@@ -152,7 +152,7 @@ function updateCardState(card, isValid) {
   if (!card) return;
 
   card.classList.toggle("ok", isValid);
-  card.classList.toggle("bad", !isValid);
+  card.classList.toggle("fail", !isValid);
 }
 
 function updateDashboard(password) {
@@ -273,6 +273,7 @@ function normalizeList(value) {
         if (item?.text) return item.text;
         if (item?.details) return item.details;
         if (item?.pattern) return item.pattern;
+        if (item?.password) return item.password;
         return JSON.stringify(item);
       })
       .filter(Boolean);
@@ -285,13 +286,9 @@ function normalizeList(value) {
 
 function extractReasons(scoreData, explainData) {
   return [
-    ...normalizeList(scoreData?.feedback),
     ...normalizeList(scoreData?.weak_patterns),
-    ...normalizeList(scoreData?.patterns),
-    ...normalizeList(explainData?.reasons),
-    ...normalizeList(explainData?.explanations),
-    ...normalizeList(explainData?.details),
-    ...normalizeList(explainData?.feedback),
+    ...normalizeList(explainData?.missing_requirements),
+    ...normalizeList(explainData?.pattern_warnings),
   ];
 }
 
@@ -322,7 +319,7 @@ function renderScore(scoreData, explainData = null) {
 
   if (securityLevel) {
     securityLevel.textContent = level;
-    securityLevel.className = `level ${levelMeta.cls}`;
+    securityLevel.className = `security-level level-${levelMeta.cls}`;
   }
 
   if (riskScore) {
@@ -331,13 +328,13 @@ function renderScore(scoreData, explainData = null) {
 
   if (progressBar) {
     progressBar.style.width = `${score}%`;
-    progressBar.className = `progress-bar ${levelMeta.cls}`;
+    progressBar.className = `progress-bar bar-${levelMeta.cls}`;
   }
 
   if (scoreMessage) {
     scoreMessage.textContent =
+      explainData?.assessment ||
       scoreData?.message ||
-      explainData?.summary ||
       explainData?.message ||
       buildScoreMessage(level, score);
   }
