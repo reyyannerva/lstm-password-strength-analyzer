@@ -46,14 +46,6 @@ class CharTokenizer:
                 continue
 
             for ch in str(password):
-                if ch in (
-                    self.pad_token,
-                    self.sos_token,
-                    self.eos_token,
-                    self.unk_token,
-                ):
-                    continue
-
                 if ch not in self._char2id:
                     self._char2id[ch] = self._next_id
                     self._id2char[self._next_id] = ch

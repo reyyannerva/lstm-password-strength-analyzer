@@ -1,9 +1,13 @@
 const API_BASE = "http://localhost:8000";
+
 const SCORE_ENDPOINT = `${API_BASE}/score`;
 const EXPLAIN_ENDPOINT = `${API_BASE}/explain`;
 const GENERATE_ENDPOINT = `${API_BASE}/generate`;
 
-// DOM refs
+// ======================================================
+// DOM REFERENCES
+// ======================================================
+
 const passwordInput = document.getElementById("passwordInput");
 const analyzeBtn = document.getElementById("analyzeBtn");
 const generateBtn = document.getElementById("generateBtn");
@@ -48,6 +52,10 @@ const dashCards = {
   patterns: document.getElementById("dash-patterns"),
 };
 
+// ======================================================
+// CONSTANTS
+// ======================================================
+
 const LEVEL_MAP = {
   "Çok Zayıf": { cls: "very-weak", bar: 8 },
   "Zayıf": { cls: "weak", bar: 25 },
@@ -56,12 +64,28 @@ const LEVEL_MAP = {
   "Çok Güçlü": { cls: "very-strong", bar: 95 },
 };
 
-const SPECIAL_CHARS = "!@#$%^&*()-_=+[]{}|;:,.<>?";
+const TURKISH_UPPERCASE_REGEX = /[A-ZÇĞİÖŞÜ]/;
+const TURKISH_LOWERCASE_REGEX = /[a-zçğıöşü]/;
+const DIGIT_REGEX = /\d/;
+const SPECIAL_REGEX = /[^A-ZÇĞİÖŞÜa-zçğıöşü0-9]/;
 
-// ===== Utility =====
+const DEFAULT_GENERATED_PASSWORD_LENGTH = 16;
+
+// ======================================================
+// BASIC UTILITIES
+// ======================================================
+
 function safeText(value, fallback = "") {
   if (value === null || value === undefined) return fallback;
   return String(value);
+}
+
+function clampNumber(value, min = 0, max = 100) {
+  const number = Number(value);
+
+  if (Number.isNaN(number)) return min;
+
+  return Math.max(min, Math.min(max, number));
 }
 
 function clearList(element) {
@@ -71,17 +95,24 @@ function clearList(element) {
 
 function appendListItem(element, text) {
   if (!element) return;
+
+  const normalizedText = safeText(text).trim();
+
+  if (!normalizedText) return;
+
   const li = document.createElement("li");
-  li.textContent = safeText(text);
+  li.textContent = normalizedText;
   element.appendChild(li);
 }
 
 function showElement(element) {
-  if (element) element.classList.remove("hidden");
+  if (!element) return;
+  element.classList.remove("hidden");
 }
 
 function hideElement(element) {
-  if (element) element.classList.add("hidden");
+  if (!element) return;
+  element.classList.add("hidden");
 }
 
 function setButtonLoading(button, isLoading, loadingText, defaultText) {
@@ -91,16 +122,25 @@ function setButtonLoading(button, isLoading, loadingText, defaultText) {
   button.textContent = isLoading ? loadingText : defaultText;
 }
 
-// ===== Toast =====
+function uniqueList(items) {
+  return [...new Set(items.map((item) => safeText(item).trim()).filter(Boolean))];
+}
+
+// ======================================================
+// TOAST
+// ======================================================
+
 function showToast(message, type = "info") {
+  const normalizedMessage = safeText(message, "Bilgi").trim();
+
   if (!toastContainer) {
-    console.log(`[${type}] ${message}`);
+    console.log(`[${type}] ${normalizedMessage}`);
     return;
   }
 
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-  toast.textContent = message;
+  toast.textContent = normalizedMessage;
 
   toastContainer.appendChild(toast);
 
@@ -109,40 +149,72 @@ function showToast(message, type = "info") {
   }, 3000);
 }
 
-// ===== Theme =====
+// ======================================================
+// THEME
+// ======================================================
+
 function applyTheme(theme) {
   if (!themeToggle) return;
 
-  document.documentElement.setAttribute("data-theme", theme);
-  themeToggle.textContent = theme === "dark" ? "🌙" : "☀️";
-  localStorage.setItem("theme", theme);
+  const normalizedTheme = theme === "light" ? "light" : "dark";
+
+  document.documentElement.setAttribute("data-theme", normalizedTheme);
+  themeToggle.textContent = normalizedTheme === "dark" ? "🌙" : "☀️";
+  localStorage.setItem("theme", normalizedTheme);
 }
 
 if (themeToggle) {
   themeToggle.addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme") || "dark";
-    applyTheme(current === "dark" ? "light" : "dark");
+    const currentTheme =
+      document.documentElement.getAttribute("data-theme") || "dark";
+
+    applyTheme(currentTheme === "dark" ? "light" : "dark");
   });
 }
 
 applyTheme(localStorage.getItem("theme") || "dark");
 
-// ===== Dashboard =====
+// ======================================================
+// LOCAL PASSWORD CHECKS
+// ======================================================
+
+function hasUppercase(password) {
+  return TURKISH_UPPERCASE_REGEX.test(safeText(password));
+}
+
+function hasLowercase(password) {
+  return TURKISH_LOWERCASE_REGEX.test(safeText(password));
+}
+
+function hasDigit(password) {
+  return DIGIT_REGEX.test(safeText(password));
+}
+
+function hasSpecial(password) {
+  return SPECIAL_REGEX.test(safeText(password));
+}
+
 function hasWeakLocalPattern(password) {
-  const lower = password.toLowerCase();
+  const lower = safeText(password).toLowerCase();
 
   const weakPatterns = [
     "123",
     "1234",
     "12345",
     "123456",
+    "123456789",
     "abc",
     "abcd",
     "qwerty",
     "asdf",
     "zxcv",
     "password",
+    "parola",
     "admin",
+    "test",
+    "root",
+    "login",
+    "welcome",
   ];
 
   return weakPatterns.some((pattern) => lower.includes(pattern));
@@ -151,42 +223,52 @@ function hasWeakLocalPattern(password) {
 function updateCardState(card, isValid) {
   if (!card) return;
 
+<<<<<<< HEAD
   card.classList.toggle("ok", isValid);
-  card.classList.toggle("bad", !isValid);
+  card.classList.toggle("fail", !isValid);
+=======
+  card.classList.toggle("ok", Boolean(isValid));
+  card.classList.toggle("bad", !Boolean(isValid));
+>>>>>>> dd54a67 (Fix frontend password score display and Turkish character checks)
 }
 
 function updateDashboard(password) {
   if (!dashboardSection) return;
 
-  if (!password) {
+  const currentPassword = safeText(password);
+
+  if (!currentPassword) {
     hideElement(dashboardSection);
     return;
   }
 
   showElement(dashboardSection);
 
-  const hasUpper = /[A-Z]/.test(password);
-  const hasLower = /[a-z]/.test(password);
-  const hasDigit = /\d/.test(password);
-  const hasSpecial = /[^a-zA-Z0-9]/.test(password);
-  const lengthOk = password.length >= 8;
-  const patternOk = !hasWeakLocalPattern(password);
+  const upper = hasUppercase(currentPassword);
+  const lower = hasLowercase(currentPassword);
+  const digit = hasDigit(currentPassword);
+  const special = hasSpecial(currentPassword);
+  const lengthOk = currentPassword.length >= 8;
+  const patternOk = !hasWeakLocalPattern(currentPassword);
 
-  if (valLength) valLength.textContent = `${password.length} karakter`;
-  if (valUpper) valUpper.textContent = hasUpper ? "Var" : "Yok";
-  if (valLower) valLower.textContent = hasLower ? "Var" : "Yok";
-  if (valDigit) valDigit.textContent = hasDigit ? "Var" : "Yok";
-  if (valSpecial) valSpecial.textContent = hasSpecial ? "Var" : "Yok";
+  if (valLength) valLength.textContent = `${currentPassword.length} karakter`;
+  if (valUpper) valUpper.textContent = upper ? "Var" : "Yok";
+  if (valLower) valLower.textContent = lower ? "Var" : "Yok";
+  if (valDigit) valDigit.textContent = digit ? "Var" : "Yok";
+  if (valSpecial) valSpecial.textContent = special ? "Var" : "Yok";
   if (valPatterns) valPatterns.textContent = patternOk ? "Temiz" : "Riskli";
 
-  updateCardState(dashCards.upper, hasUpper);
-  updateCardState(dashCards.lower, hasLower);
-  updateCardState(dashCards.digit, hasDigit);
-  updateCardState(dashCards.special, hasSpecial);
+  updateCardState(dashCards.upper, upper);
+  updateCardState(dashCards.lower, lower);
+  updateCardState(dashCards.digit, digit);
+  updateCardState(dashCards.special, special);
   updateCardState(dashCards.patterns, patternOk && lengthOk);
 }
 
-// ===== API =====
+// ======================================================
+// API HELPERS
+// ======================================================
+
 async function postJson(url, payload) {
   const response = await fetch(url, {
     method: "POST",
@@ -227,7 +309,7 @@ async function explainPassword(password) {
 
 async function generateSecurePassword() {
   return postJson(GENERATE_ENDPOINT, {
-    length: 16,
+    length: DEFAULT_GENERATED_PASSWORD_LENGTH,
     use_uppercase: true,
     use_lowercase: true,
     use_digits: true,
@@ -235,31 +317,102 @@ async function generateSecurePassword() {
   });
 }
 
-// ===== Response parsing =====
+// ======================================================
+// RESPONSE NORMALIZATION
+// ======================================================
+
 function getScoreFromResponse(scoreData) {
-  const rawScore =
-    scoreData?.final_score ??
-    scoreData?.security_score ??
-    scoreData?.score ??
-    scoreData?.risk_score ??
-    0;
+  if (!scoreData || typeof scoreData !== "object") return 0;
 
-  const numericScore = Number(rawScore);
+  if (scoreData.final_score !== undefined && scoreData.final_score !== null) {
+    return clampNumber(scoreData.final_score);
+  }
 
-  if (Number.isNaN(numericScore)) return 0;
+  if (scoreData.security_score !== undefined && scoreData.security_score !== null) {
+    return clampNumber(scoreData.security_score);
+  }
 
-  return Math.max(0, Math.min(100, numericScore));
+  if (scoreData.score !== undefined && scoreData.score !== null) {
+    return clampNumber(scoreData.score);
+  }
+
+  if (scoreData.strength_score !== undefined && scoreData.strength_score !== null) {
+    return clampNumber(scoreData.strength_score);
+  }
+
+  if (scoreData.password_score !== undefined && scoreData.password_score !== null) {
+    return clampNumber(scoreData.password_score);
+  }
+
+  /*
+    Önemli:
+    risk_score çoğu sistemde "risk ne kadar yüksek?" anlamına gelir.
+    Yani risk_score = 100 ise parola çok risklidir.
+    UI ise "güvenlik skoru" gösteriyor.
+    Bu yüzden sadece risk_score varsa 100 - risk_score yapılır.
+  */
+  if (scoreData.risk_score !== undefined && scoreData.risk_score !== null) {
+    return clampNumber(100 - Number(scoreData.risk_score));
+  }
+
+  return 0;
+}
+
+function normalizeSecurityLevel(level) {
+  const rawLevel = safeText(level).trim();
+
+  const aliases = {
+    "very weak": "Çok Zayıf",
+    very_weak: "Çok Zayıf",
+    "çok zayıf": "Çok Zayıf",
+    "cok zayif": "Çok Zayıf",
+
+    weak: "Zayıf",
+    zayıf: "Zayıf",
+    zayif: "Zayıf",
+
+    medium: "Orta",
+    orta: "Orta",
+
+    strong: "Güçlü",
+    güçlü: "Güçlü",
+    guclu: "Güçlü",
+
+    "very strong": "Çok Güçlü",
+    very_strong: "Çok Güçlü",
+    "çok güçlü": "Çok Güçlü",
+    "cok guclu": "Çok Güçlü",
+  };
+
+  const key = rawLevel.toLowerCase();
+
+  return aliases[key] || rawLevel;
+}
+
+function getLevelFromScore(score) {
+  const normalizedScore = clampNumber(score);
+
+  if (normalizedScore < 20) return "Çok Zayıf";
+  if (normalizedScore < 40) return "Zayıf";
+  if (normalizedScore < 60) return "Orta";
+  if (normalizedScore < 80) return "Güçlü";
+  return "Çok Güçlü";
 }
 
 function getLevelFromResponse(scoreData, score) {
-  if (scoreData?.security_level) return scoreData.security_level;
-  if (scoreData?.level) return scoreData.level;
+  const apiLevel =
+    scoreData?.security_level ||
+    scoreData?.level ||
+    scoreData?.strength_level ||
+    scoreData?.password_level;
 
-  if (score < 20) return "Çok Zayıf";
-  if (score < 40) return "Zayıf";
-  if (score < 60) return "Orta";
-  if (score < 80) return "Güçlü";
-  return "Çok Güçlü";
+  const normalizedApiLevel = normalizeSecurityLevel(apiLevel);
+
+  if (LEVEL_MAP[normalizedApiLevel]) {
+    return normalizedApiLevel;
+  }
+
+  return getLevelFromScore(score);
 }
 
 function normalizeList(value) {
@@ -272,90 +425,114 @@ function normalizeList(value) {
         if (item?.message) return item.message;
         if (item?.text) return item.text;
         if (item?.details) return item.details;
+        if (item?.detail) return item.detail;
         if (item?.pattern) return item.pattern;
+<<<<<<< HEAD
+        if (item?.password) return item.password;
         return JSON.stringify(item);
+=======
+        if (item?.reason) return item.reason;
+        if (item?.suggestion) return item.suggestion;
+
+        try {
+          return JSON.stringify(item);
+        } catch (error) {
+          return String(item);
+        }
+>>>>>>> dd54a67 (Fix frontend password score display and Turkish character checks)
       })
       .filter(Boolean);
   }
 
-  if (typeof value === "string") return [value];
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (typeof value === "object") {
+    return Object.values(value)
+      .flatMap((item) => normalizeList(item))
+      .filter(Boolean);
+  }
 
   return [];
 }
 
 function extractReasons(scoreData, explainData) {
+<<<<<<< HEAD
   return [
+    ...normalizeList(scoreData?.weak_patterns),
+    ...normalizeList(explainData?.missing_requirements),
+    ...normalizeList(explainData?.pattern_warnings),
+  ];
+=======
+  return uniqueList([
     ...normalizeList(scoreData?.feedback),
     ...normalizeList(scoreData?.weak_patterns),
     ...normalizeList(scoreData?.patterns),
+    ...normalizeList(scoreData?.risk_reasons),
+    ...normalizeList(scoreData?.reasons),
+    ...normalizeList(scoreData?.details),
+
     ...normalizeList(explainData?.reasons),
     ...normalizeList(explainData?.explanations),
     ...normalizeList(explainData?.details),
     ...normalizeList(explainData?.feedback),
-  ];
+    ...normalizeList(explainData?.risk_reasons),
+  ]);
+>>>>>>> dd54a67 (Fix frontend password score display and Turkish character checks)
 }
 
 function extractSuggestions(scoreData, explainData) {
-  return [
+  return uniqueList([
     ...normalizeList(scoreData?.suggestions),
     ...normalizeList(scoreData?.recommendations),
+    ...normalizeList(scoreData?.advice),
+    ...normalizeList(scoreData?.improvements),
+
     ...normalizeList(explainData?.suggestions),
     ...normalizeList(explainData?.recommendations),
-  ];
+    ...normalizeList(explainData?.advice),
+    ...normalizeList(explainData?.improvements),
+  ]);
 }
 
 function extractAlternatives(generateData) {
-  return [
+  return uniqueList([
     ...normalizeList(generateData?.alternatives),
     ...normalizeList(generateData?.suggested_passwords),
     ...normalizeList(generateData?.suggestions),
-  ];
+    ...normalizeList(generateData?.passwords),
+  ]);
 }
 
-// ===== Rendering =====
-function renderScore(scoreData, explainData = null) {
-  const score = getScoreFromResponse(scoreData);
-  const level = getLevelFromResponse(scoreData, score);
-  const levelMeta = LEVEL_MAP[level] || LEVEL_MAP["Orta"];
-
-  showElement(resultSection);
-
-  if (securityLevel) {
-    securityLevel.textContent = level;
-    securityLevel.className = `level ${levelMeta.cls}`;
-  }
-
-  if (riskScore) {
-    riskScore.textContent = `${Math.round(score)} / 100`;
-  }
-
-  if (progressBar) {
-    progressBar.style.width = `${score}%`;
-    progressBar.className = `progress-bar ${levelMeta.cls}`;
-  }
-
-  if (scoreMessage) {
-    scoreMessage.textContent =
-      scoreData?.message ||
-      explainData?.summary ||
-      explainData?.message ||
-      buildScoreMessage(level, score);
-  }
-
-  renderReasons(scoreData, explainData);
-  renderSuggestions(scoreData, explainData);
-}
+// ======================================================
+// RENDERING
+// ======================================================
 
 function buildScoreMessage(level, score) {
-  if (score < 20) return "Bu parola çok zayıf ve kolay tahmin edilebilir.";
-  if (score < 40) return "Bu parola zayıf. Daha uzun ve karmaşık hale getirin.";
-  if (score < 60) return "Bu parola orta seviyede. Birkaç iyileştirme önerilir.";
-  if (score < 80) return "Bu parola güçlü görünüyor.";
+  const normalizedScore = clampNumber(score);
+
+  if (level === "Çok Zayıf" || normalizedScore < 20) {
+    return "Bu parola çok zayıf ve kolay tahmin edilebilir.";
+  }
+
+  if (level === "Zayıf" || normalizedScore < 40) {
+    return "Bu parola zayıf. Daha uzun ve karmaşık hale getirin.";
+  }
+
+  if (level === "Orta" || normalizedScore < 60) {
+    return "Bu parola orta seviyede. Birkaç iyileştirme önerilir.";
+  }
+
+  if (level === "Güçlü" || normalizedScore < 80) {
+    return "Bu parola güçlü görünüyor.";
+  }
+
   return "Bu parola çok güçlü görünüyor.";
 }
 
 function renderReasons(scoreData, explainData) {
-  const reasons = [...new Set(extractReasons(scoreData, explainData))];
+  const reasons = extractReasons(scoreData, explainData);
 
   clearList(reasonsList);
 
@@ -369,7 +546,7 @@ function renderReasons(scoreData, explainData) {
 }
 
 function renderSuggestions(scoreData, explainData) {
-  const suggestions = [...new Set(extractSuggestions(scoreData, explainData))];
+  const suggestions = extractSuggestions(scoreData, explainData);
 
   clearList(suggestionsList);
 
@@ -380,6 +557,39 @@ function renderSuggestions(scoreData, explainData) {
 
   suggestions.forEach((suggestion) => appendListItem(suggestionsList, suggestion));
   showElement(suggestionsSection);
+}
+
+function renderScore(scoreData, explainData = null) {
+  const score = getScoreFromResponse(scoreData);
+  const level = getLevelFromResponse(scoreData, score);
+  const levelMeta = LEVEL_MAP[level] || LEVEL_MAP[getLevelFromScore(score)];
+
+  showElement(resultSection);
+
+  if (securityLevel) {
+    securityLevel.textContent = level;
+    securityLevel.className = `security-level level-${levelMeta.cls}`;
+  }
+
+  if (riskScore) {
+    riskScore.textContent = `${Math.round(score)} / 100`;
+  }
+
+  if (progressBar) {
+    progressBar.style.width = `${score}%`;
+    progressBar.className = `progress-bar bar-${levelMeta.cls}`;
+  }
+
+  if (scoreMessage) {
+    scoreMessage.textContent =
+      explainData?.assessment ||
+      scoreData?.message ||
+      explainData?.message ||
+      buildScoreMessage(level, score);
+  }
+
+  renderReasons(scoreData, explainData);
+  renderSuggestions(scoreData, explainData);
 }
 
 function renderGeneratedPassword(generateData) {
@@ -400,6 +610,7 @@ function renderGeneratedPassword(generateData) {
   showElement(generatedSection);
 
   const alternatives = extractAlternatives(generateData);
+
   clearList(alternativesList);
 
   if (alternatives.length) {
@@ -417,13 +628,20 @@ function renderGeneratedPassword(generateData) {
   renderScore(generateData, null);
 }
 
-// ===== Actions =====
+// ======================================================
+// ACTIONS
+// ======================================================
+
 async function analyzePassword() {
   const password = passwordInput ? passwordInput.value.trim() : "";
 
   if (!password) {
     showToast("Lütfen analiz edilecek bir parola girin.", "error");
-    if (passwordInput) passwordInput.focus();
+
+    if (passwordInput) {
+      passwordInput.focus();
+    }
+
     return;
   }
 
@@ -438,7 +656,10 @@ async function analyzePassword() {
     renderScore(scoreData, explainData);
     showToast("Parola analizi tamamlandı.", "success");
   } catch (error) {
-    showToast(error.message || "Parola analizi sırasında hata oluştu.", "error");
+    showToast(
+      error.message || "Parola analizi sırasında hata oluştu.",
+      "error"
+    );
   } finally {
     setButtonLoading(analyzeBtn, false, "Analiz ediliyor...", "Analiz Et");
   }
@@ -449,11 +670,14 @@ async function handleGeneratePassword() {
     setButtonLoading(generateBtn, true, "Üretiliyor...", "Güvenli Parola Üret");
 
     const generateData = await generateSecurePassword();
-    renderGeneratedPassword(generateData);
 
+    renderGeneratedPassword(generateData);
     showToast("Güvenli parola üretildi.", "success");
   } catch (error) {
-    showToast(error.message || "Parola üretimi sırasında hata oluştu.", "error");
+    showToast(
+      error.message || "Parola üretimi sırasında hata oluştu.",
+      "error"
+    );
   } finally {
     setButtonLoading(generateBtn, false, "Üretiliyor...", "Güvenli Parola Üret");
   }
@@ -479,11 +703,15 @@ function togglePasswordVisibility() {
   if (!passwordInput || !toggleBtn) return;
 
   const isPassword = passwordInput.type === "password";
+
   passwordInput.type = isPassword ? "text" : "password";
   toggleBtn.textContent = isPassword ? "🙈" : "👁";
 }
 
-// ===== Event listeners =====
+// ======================================================
+// EVENT LISTENERS
+// ======================================================
+
 if (analyzeBtn) {
   analyzeBtn.addEventListener("click", analyzePassword);
 }
@@ -512,7 +740,10 @@ if (passwordInput) {
   });
 }
 
-// Initial state
+// ======================================================
+// INITIAL STATE
+// ======================================================
+
 hideElement(resultSection);
 hideElement(reasonsSection);
 hideElement(suggestionsSection);

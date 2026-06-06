@@ -15,6 +15,8 @@ STRONG_PPX = 200.0
 
 def _password_perplexity(model, tokenizer, password, device):
     model.eval()
+    if not password or not password.strip():
+        return 1.0
     ids = tokenizer.encode(password)
     if len(ids) < 2:
         return 1.0
