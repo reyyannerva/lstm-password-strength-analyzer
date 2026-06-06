@@ -2,89 +2,256 @@
 <html lang="tr" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta
+    name="description"
+    content="LSTM tabanlı parola güvenlik analizi, riskli desen tespiti, güvenlik skoru ve güvenli parola üretme arayüzü."
+  />
+  <meta name="theme-color" content="#111827" />
+
   <title>Parola Güvenlik Analizi</title>
-  <link rel="stylesheet" href="style.css" />
+
+  <link rel="stylesheet" href="style.css?v=20260606-final-ui-fix" />
+
+  <style>
+    .password-form-header {
+      margin-bottom: 18px;
+    }
+
+    .password-form-title {
+      margin: 0 0 8px 0;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-primary, #f8fafc);
+      letter-spacing: -0.02em;
+    }
+
+    .password-form-description {
+      margin: 0;
+      max-width: 680px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text-secondary, #aeb9cf);
+    }
+
+    .password-field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 18px;
+    }
+
+    .password-field-label {
+      position: static !important;
+      display: block !important;
+      width: auto !important;
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: visible !important;
+      clip: auto !important;
+      white-space: normal !important;
+      transform: none !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      font-size: 0.9rem !important;
+      font-weight: 700 !important;
+      color: var(--text-primary, #f8fafc) !important;
+    }
+
+    .password-field-helper {
+      margin: 0;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: var(--text-muted, #94a3b8);
+    }
+
+    .input-wrapper.password-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      margin: 0;
+    }
+
+    .input-wrapper.password-input-wrapper input {
+      width: 100%;
+      padding-right: 52px;
+    }
+
+    .input-wrapper.password-input-wrapper .toggle-btn {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+    }
+  </style>
 </head>
+
 <body>
-  <!-- Toast Container -->
-  <div id="toastContainer" class="toast-container"></div>
+  <noscript>
+    <div class="noscript-warning">
+      Bu uygulamayı kullanmak için tarayıcınızda JavaScript etkin olmalıdır.
+    </div>
+  </noscript>
 
-  <!-- Theme Toggle -->
-  <button id="themeToggle" class="theme-toggle" title="Tema değiştir">🌙</button>
+  <div
+    id="toastContainer"
+    class="toast-container"
+    aria-live="polite"
+    aria-atomic="true"
+  ></div>
 
-  <div class="container">
+  <button
+    id="themeToggle"
+    class="theme-toggle"
+    type="button"
+    title="Tema değiştir"
+    aria-label="Tema değiştir"
+  >
+    🌙
+  </button>
+
+  <main class="container" role="main">
     <header class="header">
       <h1>🔐 Parola Güvenlik Analizi</h1>
       <p class="subtitle">LSTM tabanlı akıllı parola analizi</p>
     </header>
 
-    <!-- Input Section -->
-    <section class="input-section">
-      <div class="input-wrapper">
-        <input
-          type="password"
-          id="passwordInput"
-          placeholder="Parolanızı girin..."
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <button id="toggleVisibility" class="toggle-btn" title="Göster/Gizle" aria-label="Parolayı göster/gizle">👁</button>
+    <section class="input-section" aria-labelledby="password-form-title">
+      <div class="password-form-header">
+        <h2 id="password-form-title" class="password-form-title">
+          Parola Analiz Paneli
+        </h2>
+
+        <p class="password-form-description">
+          Parolanızı girin; sistem uzunluk, büyük/küçük harf kullanımı, rakam,
+          özel karakter, riskli desenler, güvenlik skoru ve iyileştirme
+          önerilerini birlikte analiz eder.
+        </p>
+      </div>
+
+      <div class="password-field-group">
+        <label for="passwordInput" class="password-field-label">
+          Analiz edilecek parola
+        </label>
+
+        <div class="input-wrapper password-input-wrapper">
+          <input
+            type="password"
+            id="passwordInput"
+            name="password"
+            placeholder="Örn: Str0ng!Pass123"
+            autocomplete="new-password"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-label="Analiz edilecek parola"
+            aria-describedby="passwordHelpText"
+          />
+
+          <button
+            id="toggleVisibility"
+            class="toggle-btn"
+            type="button"
+            title="Parolayı göster veya gizle"
+            aria-label="Parolayı göster veya gizle"
+          >
+            👁
+          </button>
+        </div>
+
+        <p id="passwordHelpText" class="password-field-helper">
+          İpucu: 12+ karakter, büyük harf, küçük harf, rakam ve özel karakter
+          içeren parolalar daha güçlü değerlendirilir.
+        </p>
       </div>
 
       <div class="button-group">
-        <button id="analyzeBtn" class="btn btn-primary">
-          <span class="btn-icon">🔍</span> Analiz Et
+        <button id="analyzeBtn" class="btn btn-primary" type="button">
+          <span class="btn-icon" aria-hidden="true">🔍</span>
+          <span>Analiz Et</span>
         </button>
-        <button id="generateBtn" class="btn btn-secondary">
-          <span class="btn-icon">✨</span> Güvenli Parola Üret
+
+        <button id="generateBtn" class="btn btn-secondary" type="button">
+          <span class="btn-icon" aria-hidden="true">✨</span>
+          <span>Güvenli Parola Üret</span>
         </button>
       </div>
     </section>
 
-    <!-- Dashboard: Karakter Kriterleri -->
-    <section id="dashboardSection" class="dashboard hidden">
+    <section
+      id="dashboardSection"
+      class="dashboard hidden"
+      aria-label="Parola karakter kriterleri"
+    >
       <div class="dash-card" id="dash-length">
-        <span class="dash-icon">📏</span>
+        <span class="dash-icon" aria-hidden="true">📏</span>
         <span class="dash-label">Uzunluk</span>
-        <span class="dash-value" id="val-length">0</span>
+        <span class="dash-value" id="val-length">0 karakter</span>
       </div>
+
       <div class="dash-card" id="dash-upper">
-        <span class="dash-icon">🔠</span>
+        <span class="dash-icon" aria-hidden="true">🔠</span>
         <span class="dash-label">Büyük Harf</span>
-        <span class="dash-check" id="val-upper">✗</span>
+        <span class="dash-check" id="val-upper">Yok</span>
       </div>
+
       <div class="dash-card" id="dash-lower">
-        <span class="dash-icon">🔡</span>
+        <span class="dash-icon" aria-hidden="true">🔡</span>
         <span class="dash-label">Küçük Harf</span>
-        <span class="dash-check" id="val-lower">✗</span>
+        <span class="dash-check" id="val-lower">Yok</span>
       </div>
+
       <div class="dash-card" id="dash-digit">
-        <span class="dash-icon">🔢</span>
+        <span class="dash-icon" aria-hidden="true">🔢</span>
         <span class="dash-label">Rakam</span>
-        <span class="dash-check" id="val-digit">✗</span>
+        <span class="dash-check" id="val-digit">Yok</span>
       </div>
+
       <div class="dash-card" id="dash-special">
-        <span class="dash-icon">💠</span>
+        <span class="dash-icon" aria-hidden="true">💠</span>
         <span class="dash-label">Özel Karakter</span>
-        <span class="dash-check" id="val-special">✗</span>
+        <span class="dash-check" id="val-special">Yok</span>
       </div>
+
       <div class="dash-card" id="dash-patterns">
-        <span class="dash-icon">⚠️</span>
+        <span class="dash-icon" aria-hidden="true">⚠️</span>
         <span class="dash-label">Riskli Desen</span>
-        <span class="dash-value" id="val-patterns">0</span>
+        <span class="dash-value" id="val-patterns">Temiz</span>
       </div>
     </section>
 
-    <!-- Score Result -->
-    <section id="resultSection" class="result-section hidden">
+    <section
+      id="resultSection"
+      class="result-section hidden"
+      aria-label="Parola analiz sonucu"
+    >
       <div class="score-card">
         <div class="score-header">
-          <span id="securityLevel" class="security-level"></span>
-          <span id="riskScore" class="risk-score"></span>
+          <span
+            id="securityLevel"
+            class="security-level"
+            aria-label="Güvenlik seviyesi"
+          ></span>
+
+          <span
+            id="riskScore"
+            class="risk-score"
+            aria-label="Güvenlik skoru"
+          ></span>
         </div>
 
-        <div class="progress-container">
+        <div
+          class="progress-container"
+          role="progressbar"
+          aria-label="Parola güvenlik skoru"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
           <div id="progressBar" class="progress-bar"></div>
         </div>
 
@@ -102,22 +269,28 @@
       </div>
     </section>
 
-    <!-- Generated Password -->
-    <section id="generatedSection" class="generated-section hidden">
+    <section
+      id="generatedSection"
+      class="generated-section hidden"
+      aria-label="Üretilen güvenli parola"
+    >
       <h3>✅ Üretilen Güvenli Parola</h3>
+
       <div class="generated-wrapper">
         <code id="generatedPassword"></code>
-        <button id="copyBtn" class="btn btn-copy">📋 Kopyala</button>
+
+        <button id="copyBtn" class="btn btn-copy" type="button">
+          📋 Kopyala
+        </button>
       </div>
 
-      <!-- Alternatif Parolalar -->
       <div id="alternativesSection" class="alternatives hidden">
         <p class="alt-title">Diğer seçenekler:</p>
         <div id="alternativesList" class="alt-list"></div>
       </div>
     </section>
-  </div>
+  </main>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=20260606-final-score-fix"></script>
 </body>
 </html>
