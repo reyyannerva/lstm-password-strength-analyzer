@@ -4,10 +4,6 @@ const SCORE_ENDPOINT = `${API_BASE}/score`;
 const EXPLAIN_ENDPOINT = `${API_BASE}/explain`;
 const GENERATE_ENDPOINT = `${API_BASE}/generate`;
 
-// ======================================================
-// DOM REFERENCES
-// ======================================================
-
 const passwordInput = document.getElementById("passwordInput");
 const analyzeBtn = document.getElementById("analyzeBtn");
 const generateBtn = document.getElementById("generateBtn");
@@ -36,7 +32,6 @@ const alternativesList = document.getElementById("alternativesList");
 const dashboardSection = document.getElementById("dashboardSection");
 const toastContainer = document.getElementById("toastContainer");
 
-// Dashboard elements
 const valLength = document.getElementById("val-length");
 const valUpper = document.getElementById("val-upper");
 const valLower = document.getElementById("val-lower");
@@ -52,16 +47,12 @@ const dashCards = {
   patterns: document.getElementById("dash-patterns"),
 };
 
-// ======================================================
-// CONSTANTS
-// ======================================================
-
 const LEVEL_MAP = {
-  "Çok Zayıf": { cls: "very-weak", bar: 8 },
-  "Zayıf": { cls: "weak", bar: 25 },
-  "Orta": { cls: "medium", bar: 50 },
-  "Güçlü": { cls: "strong", bar: 75 },
-  "Çok Güçlü": { cls: "very-strong", bar: 95 },
+  "Çok Zayıf": { cls: "very-weak", fallbackBar: 5 },
+  "Zayıf": { cls: "weak", fallbackBar: 25 },
+  "Orta": { cls: "medium", fallbackBar: 50 },
+  "Güçlü": { cls: "strong", fallbackBar: 75 },
+  "Çok Güçlü": { cls: "very-strong", fallbackBar: 95 },
 };
 
 const TURKISH_UPPERCASE_REGEX = /[A-ZÇĞİÖŞÜ]/;
@@ -71,10 +62,6 @@ const SPECIAL_REGEX = /[^A-ZÇĞİÖŞÜa-zçğıöşü0-9]/;
 
 const DEFAULT_GENERATED_PASSWORD_LENGTH = 16;
 
-// ======================================================
-// BASIC UTILITIES
-// ======================================================
-
 function safeText(value, fallback = "") {
   if (value === null || value === undefined) return fallback;
   return String(value);
@@ -82,27 +69,8 @@ function safeText(value, fallback = "") {
 
 function clampNumber(value, min = 0, max = 100) {
   const number = Number(value);
-
-  if (Number.isNaN(number)) return min;
-
+  if (!Number.isFinite(number)) return min;
   return Math.max(min, Math.min(max, number));
-}
-
-function clearList(element) {
-  if (!element) return;
-  element.innerHTML = "";
-}
-
-function appendListItem(element, text) {
-  if (!element) return;
-
-  const normalizedText = safeText(text).trim();
-
-  if (!normalizedText) return;
-
-  const li = document.createElement("li");
-  li.textContent = normalizedText;
-  element.appendChild(li);
 }
 
 function showElement(element) {
@@ -115,20 +83,31 @@ function hideElement(element) {
   element.classList.add("hidden");
 }
 
-function setButtonLoading(button, isLoading, loadingText, defaultText) {
-  if (!button) return;
+function clearList(element) {
+  if (!element) return;
+  element.innerHTML = "";
+}
 
-  button.disabled = isLoading;
-  button.textContent = isLoading ? loadingText : defaultText;
+function appendListItem(element, text) {
+  if (!element) return;
+
+  const normalizedText = safeText(text).trim();
+  if (!normalizedText) return;
+
+  const li = document.createElement("li");
+  li.textContent = normalizedText;
+  element.appendChild(li);
 }
 
 function uniqueList(items) {
   return [...new Set(items.map((item) => safeText(item).trim()).filter(Boolean))];
 }
 
-// ======================================================
-// TOAST
-// ======================================================
+function setButtonLoading(button, isLoading, loadingText, defaultText) {
+  if (!button) return;
+  button.disabled = Boolean(isLoading);
+  button.textContent = isLoading ? loadingText : defaultText;
+}
 
 function showToast(message, type = "info") {
   const normalizedMessage = safeText(message, "Bilgi").trim();
@@ -141,7 +120,6 @@ function showToast(message, type = "info") {
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
   toast.textContent = normalizedMessage;
-
   toastContainer.appendChild(toast);
 
   setTimeout(() => {
@@ -149,34 +127,14 @@ function showToast(message, type = "info") {
   }, 3000);
 }
 
-// ======================================================
-// THEME
-// ======================================================
-
 function applyTheme(theme) {
   if (!themeToggle) return;
 
   const normalizedTheme = theme === "light" ? "light" : "dark";
-
   document.documentElement.setAttribute("data-theme", normalizedTheme);
   themeToggle.textContent = normalizedTheme === "dark" ? "🌙" : "☀️";
   localStorage.setItem("theme", normalizedTheme);
 }
-
-if (themeToggle) {
-  themeToggle.addEventListener("click", () => {
-    const currentTheme =
-      document.documentElement.getAttribute("data-theme") || "dark";
-
-    applyTheme(currentTheme === "dark" ? "light" : "dark");
-  });
-}
-
-applyTheme(localStorage.getItem("theme") || "dark");
-
-// ======================================================
-// LOCAL PASSWORD CHECKS
-// ======================================================
 
 function hasUppercase(password) {
   return TURKISH_UPPERCASE_REGEX.test(safeText(password));
@@ -222,14 +180,8 @@ function hasWeakLocalPattern(password) {
 
 function updateCardState(card, isValid) {
   if (!card) return;
-
-<<<<<<< HEAD
-  card.classList.toggle("ok", isValid);
-  card.classList.toggle("fail", !isValid);
-=======
   card.classList.toggle("ok", Boolean(isValid));
   card.classList.toggle("bad", !Boolean(isValid));
->>>>>>> dd54a67 (Fix frontend password score display and Turkish character checks)
 }
 
 function updateDashboard(password) {
@@ -248,32 +200,28 @@ function updateDashboard(password) {
   const lower = hasLowercase(currentPassword);
   const digit = hasDigit(currentPassword);
   const special = hasSpecial(currentPassword);
-  const lengthOk = currentPassword.length >= 8;
-  const patternOk = !hasWeakLocalPattern(currentPassword);
+  const patternClean = !hasWeakLocalPattern(currentPassword);
 
   if (valLength) valLength.textContent = `${currentPassword.length} karakter`;
   if (valUpper) valUpper.textContent = upper ? "Var" : "Yok";
   if (valLower) valLower.textContent = lower ? "Var" : "Yok";
   if (valDigit) valDigit.textContent = digit ? "Var" : "Yok";
   if (valSpecial) valSpecial.textContent = special ? "Var" : "Yok";
-  if (valPatterns) valPatterns.textContent = patternOk ? "Temiz" : "Riskli";
+  if (valPatterns) valPatterns.textContent = patternClean ? "Temiz" : "Riskli";
 
   updateCardState(dashCards.upper, upper);
   updateCardState(dashCards.lower, lower);
   updateCardState(dashCards.digit, digit);
   updateCardState(dashCards.special, special);
-  updateCardState(dashCards.patterns, patternOk && lengthOk);
+  updateCardState(dashCards.patterns, patternClean);
 }
-
-// ======================================================
-// API HELPERS
-// ======================================================
 
 async function postJson(url, payload) {
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Accept: "application/json",
     },
     body: JSON.stringify(payload),
   });
@@ -317,15 +265,33 @@ async function generateSecurePassword() {
   });
 }
 
-// ======================================================
-// RESPONSE NORMALIZATION
-// ======================================================
-
 function getScoreFromResponse(scoreData) {
   if (!scoreData || typeof scoreData !== "object") return 0;
 
+  /*
+    ÖNEMLİ:
+    API şu alanları döndürebiliyor:
+
+    strength_score: güvenlik skoru, UI'da gösterilecek doğru alan
+    risk_score: risk skoru, yüksekse parola kötü demektir
+    security_level: metinsel seviye
+
+    Bu yüzden risk_score asla ilk tercih edilmez.
+    123456 için API:
+    strength_score = 0
+    risk_score = 100
+    security_level = Çok Zayıf
+
+    UI'da gösterilmesi gereken:
+    0 / 100
+  */
+
   if (scoreData.final_score !== undefined && scoreData.final_score !== null) {
     return clampNumber(scoreData.final_score);
+  }
+
+  if (scoreData.strength_score !== undefined && scoreData.strength_score !== null) {
+    return clampNumber(scoreData.strength_score);
   }
 
   if (scoreData.security_score !== undefined && scoreData.security_score !== null) {
@@ -336,21 +302,10 @@ function getScoreFromResponse(scoreData) {
     return clampNumber(scoreData.score);
   }
 
-  if (scoreData.strength_score !== undefined && scoreData.strength_score !== null) {
-    return clampNumber(scoreData.strength_score);
-  }
-
   if (scoreData.password_score !== undefined && scoreData.password_score !== null) {
     return clampNumber(scoreData.password_score);
   }
 
-  /*
-    Önemli:
-    risk_score çoğu sistemde "risk ne kadar yüksek?" anlamına gelir.
-    Yani risk_score = 100 ise parola çok risklidir.
-    UI ise "güvenlik skoru" gösteriyor.
-    Bu yüzden sadece risk_score varsa 100 - risk_score yapılır.
-  */
   if (scoreData.risk_score !== undefined && scoreData.risk_score !== null) {
     return clampNumber(100 - Number(scoreData.risk_score));
   }
@@ -385,7 +340,6 @@ function normalizeSecurityLevel(level) {
   };
 
   const key = rawLevel.toLowerCase();
-
   return aliases[key] || rawLevel;
 }
 
@@ -427,10 +381,6 @@ function normalizeList(value) {
         if (item?.details) return item.details;
         if (item?.detail) return item.detail;
         if (item?.pattern) return item.pattern;
-<<<<<<< HEAD
-        if (item?.password) return item.password;
-        return JSON.stringify(item);
-=======
         if (item?.reason) return item.reason;
         if (item?.suggestion) return item.suggestion;
 
@@ -439,14 +389,11 @@ function normalizeList(value) {
         } catch (error) {
           return String(item);
         }
->>>>>>> dd54a67 (Fix frontend password score display and Turkish character checks)
       })
       .filter(Boolean);
   }
 
-  if (typeof value === "string") {
-    return [value];
-  }
+  if (typeof value === "string") return [value];
 
   if (typeof value === "object") {
     return Object.values(value)
@@ -458,13 +405,6 @@ function normalizeList(value) {
 }
 
 function extractReasons(scoreData, explainData) {
-<<<<<<< HEAD
-  return [
-    ...normalizeList(scoreData?.weak_patterns),
-    ...normalizeList(explainData?.missing_requirements),
-    ...normalizeList(explainData?.pattern_warnings),
-  ];
-=======
   return uniqueList([
     ...normalizeList(scoreData?.feedback),
     ...normalizeList(scoreData?.weak_patterns),
@@ -479,7 +419,6 @@ function extractReasons(scoreData, explainData) {
     ...normalizeList(explainData?.feedback),
     ...normalizeList(explainData?.risk_reasons),
   ]);
->>>>>>> dd54a67 (Fix frontend password score display and Turkish character checks)
 }
 
 function extractSuggestions(scoreData, explainData) {
@@ -505,30 +444,26 @@ function extractAlternatives(generateData) {
   ]);
 }
 
-// ======================================================
-// RENDERING
-// ======================================================
-
 function buildScoreMessage(level, score) {
   const normalizedScore = clampNumber(score);
 
   if (level === "Çok Zayıf" || normalizedScore < 20) {
-    return "Bu parola çok zayıf ve kolay tahmin edilebilir.";
+    return "Bu parola çok zayıf. Hemen değiştirin.";
   }
 
   if (level === "Zayıf" || normalizedScore < 40) {
-    return "Bu parola zayıf. Daha uzun ve karmaşık hale getirin.";
+    return "Bu parola zayıf. Daha güçlü bir parola seçin.";
   }
 
   if (level === "Orta" || normalizedScore < 60) {
-    return "Bu parola orta seviyede. Birkaç iyileştirme önerilir.";
+    return "Parola orta düzeyde güvenli. İyileştirilebilir.";
   }
 
   if (level === "Güçlü" || normalizedScore < 80) {
-    return "Bu parola güçlü görünüyor.";
+    return "Parola güçlü.";
   }
 
-  return "Bu parola çok güçlü görünüyor.";
+  return "Parola çok güçlü.";
 }
 
 function renderReasons(scoreData, explainData) {
@@ -562,13 +497,13 @@ function renderSuggestions(scoreData, explainData) {
 function renderScore(scoreData, explainData = null) {
   const score = getScoreFromResponse(scoreData);
   const level = getLevelFromResponse(scoreData, score);
-  const levelMeta = LEVEL_MAP[level] || LEVEL_MAP[getLevelFromScore(score)];
+  const levelMeta = LEVEL_MAP[level] || LEVEL_MAP[getLevelFromScore(score)] || LEVEL_MAP["Orta"];
 
   showElement(resultSection);
 
   if (securityLevel) {
     securityLevel.textContent = level;
-    securityLevel.className = `security-level level-${levelMeta.cls}`;
+    securityLevel.className = `level ${levelMeta.cls}`;
   }
 
   if (riskScore) {
@@ -577,13 +512,13 @@ function renderScore(scoreData, explainData = null) {
 
   if (progressBar) {
     progressBar.style.width = `${score}%`;
-    progressBar.className = `progress-bar bar-${levelMeta.cls}`;
+    progressBar.className = `progress-bar ${levelMeta.cls}`;
   }
 
   if (scoreMessage) {
     scoreMessage.textContent =
-      explainData?.assessment ||
       scoreData?.message ||
+      explainData?.summary ||
       explainData?.message ||
       buildScoreMessage(level, score);
   }
@@ -610,7 +545,6 @@ function renderGeneratedPassword(generateData) {
   showElement(generatedSection);
 
   const alternatives = extractAlternatives(generateData);
-
   clearList(alternativesList);
 
   if (alternatives.length) {
@@ -628,20 +562,12 @@ function renderGeneratedPassword(generateData) {
   renderScore(generateData, null);
 }
 
-// ======================================================
-// ACTIONS
-// ======================================================
-
 async function analyzePassword() {
   const password = passwordInput ? passwordInput.value.trim() : "";
 
   if (!password) {
     showToast("Lütfen analiz edilecek bir parola girin.", "error");
-
-    if (passwordInput) {
-      passwordInput.focus();
-    }
-
+    if (passwordInput) passwordInput.focus();
     return;
   }
 
@@ -656,10 +582,7 @@ async function analyzePassword() {
     renderScore(scoreData, explainData);
     showToast("Parola analizi tamamlandı.", "success");
   } catch (error) {
-    showToast(
-      error.message || "Parola analizi sırasında hata oluştu.",
-      "error"
-    );
+    showToast(error.message || "Parola analizi sırasında hata oluştu.", "error");
   } finally {
     setButtonLoading(analyzeBtn, false, "Analiz ediliyor...", "Analiz Et");
   }
@@ -670,14 +593,11 @@ async function handleGeneratePassword() {
     setButtonLoading(generateBtn, true, "Üretiliyor...", "Güvenli Parola Üret");
 
     const generateData = await generateSecurePassword();
-
     renderGeneratedPassword(generateData);
+
     showToast("Güvenli parola üretildi.", "success");
   } catch (error) {
-    showToast(
-      error.message || "Parola üretimi sırasında hata oluştu.",
-      "error"
-    );
+    showToast(error.message || "Parola üretimi sırasında hata oluştu.", "error");
   } finally {
     setButtonLoading(generateBtn, false, "Üretiliyor...", "Güvenli Parola Üret");
   }
@@ -703,14 +623,16 @@ function togglePasswordVisibility() {
   if (!passwordInput || !toggleBtn) return;
 
   const isPassword = passwordInput.type === "password";
-
   passwordInput.type = isPassword ? "text" : "password";
   toggleBtn.textContent = isPassword ? "🙈" : "👁";
 }
 
-// ======================================================
-// EVENT LISTENERS
-// ======================================================
+if (themeToggle) {
+  themeToggle.addEventListener("click", () => {
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+    applyTheme(currentTheme === "dark" ? "light" : "dark");
+  });
+}
 
 if (analyzeBtn) {
   analyzeBtn.addEventListener("click", analyzePassword);
@@ -740,9 +662,7 @@ if (passwordInput) {
   });
 }
 
-// ======================================================
-// INITIAL STATE
-// ======================================================
+applyTheme(localStorage.getItem("theme") || "dark");
 
 hideElement(resultSection);
 hideElement(reasonsSection);
