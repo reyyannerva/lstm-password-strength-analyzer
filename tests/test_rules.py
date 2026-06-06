@@ -262,8 +262,8 @@ def test_calculate_rule_score_generated_style_password(scorer):
         (40, "Orta"),
         (59.99, "Orta"),
         (60, "Güçlü"),
-        (79.99, "Güçlü"),
-        (80, "Çok Güçlü"),
+        (89.99, "Güçlü"),
+        (90, "Çok Güçlü"),
         (100, "Çok Güçlü"),
     ],
 )
