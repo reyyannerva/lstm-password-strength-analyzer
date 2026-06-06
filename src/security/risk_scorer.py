@@ -192,7 +192,7 @@ class HybridRiskScorer:
             return "Zayıf"
         if score < 60:
             return "Orta"
-        if score < 80:
+        if score < 90:
             return "Güçlü"
         return "Çok Güçlü"
 

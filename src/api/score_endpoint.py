@@ -6,8 +6,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
 from src.security.patterns import detect_patterns
+from src.security.risk_scorer import HybridRiskScorer
 
 router = APIRouter()
+scorer = HybridRiskScorer()
 
 
 class ScoreRequest(BaseModel):
@@ -23,23 +25,11 @@ class ScoreRequest(BaseModel):
 
 class ScoreResponse(BaseModel):
     password_length: int
+    strength_score: float
     risk_score: float
     security_level: str
     weak_patterns: list[str]
     message: str
-
-
-def _security_level(risk_score: float) -> str:
-    if risk_score >= 80:
-        return "Çok Zayıf"
-    elif risk_score >= 60:
-        return "Zayıf"
-    elif risk_score >= 40:
-        return "Orta"
-    elif risk_score >= 20:
-        return "Güçlü"
-    else:
-        return "Çok Güçlü"
 
 
 @router.post("/score", response_model=ScoreResponse)
@@ -48,15 +38,11 @@ def score_password(request: ScoreRequest):
     if not password:
         raise HTTPException(status_code=422, detail="Parola boş olamaz.")
 
+    result = scorer.score(password)
+    strength_score = result.final_score
+    risk_score = round(100 - strength_score, 2)
+    level = result.security_level
     patterns = detect_patterns(password)
-
-    # Kural tabanlı basit risk skoru (model entegrasyonuna kadar)
-    length_score = max(0, 100 - len(password) * 5)
-    pattern_penalty = len(patterns) * 15
-    raw_score = min(100.0, length_score + pattern_penalty)
-    risk_score = round(raw_score, 2)
-
-    level = _security_level(risk_score)
 
     messages = {
         "Çok Zayıf": "Bu parola çok zayıf. Hemen değiştirin.",
@@ -68,6 +54,7 @@ def score_password(request: ScoreRequest):
 
     return ScoreResponse(
         password_length=len(password),
+        strength_score=strength_score,
         risk_score=risk_score,
         security_level=level,
         weak_patterns=patterns,

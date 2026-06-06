@@ -64,9 +64,9 @@ def test_strong_password_with_small_123_suffix_is_not_over_penalized():
 
 
 def test_generated_style_password_is_very_strong():
-    result = calculate_hybrid_score("A9!xK2#mQ7")
+    result = calculate_hybrid_score("J7@vK!2pQ#9Lm$4R")
 
-    assert result["final_score"] >= 80
+    assert result["final_score"] >= 90
     assert result["security_level"] == "Çok Güçlü"
     assert result["feedback"] == ["Parola güçlü görünüyor."]
 
@@ -180,8 +180,8 @@ def test_security_level_boundaries():
     assert scorer.get_security_level(40) == "Orta"
     assert scorer.get_security_level(59.99) == "Orta"
     assert scorer.get_security_level(60) == "Güçlü"
-    assert scorer.get_security_level(79.99) == "Güçlü"
-    assert scorer.get_security_level(80) == "Çok Güçlü"
+    assert scorer.get_security_level(89.99) == "Güçlü"
+    assert scorer.get_security_level(90) == "Çok Güçlü"
     assert scorer.get_security_level(100) == "Çok Güçlü"
 
 def test_strong_password_with_small_embedded_pattern_keeps_high_score():
