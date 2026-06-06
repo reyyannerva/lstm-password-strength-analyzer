@@ -1,14 +1,15 @@
 ﻿"""
 Rule-based password analysis module.
 
-This module analyzes a password using independent security rules and combines
-the results into a JSON-compatible report.
+This module analyzes passwords using independent security rules and returns
+a JSON-compatible report for API, frontend and tests.
 
-The goal is to provide:
-- Clear rule-level results
-- Human-readable Turkish feedback
-- A 0-100 rule-based score
-- Details that can be used by API endpoints and frontend components
+Main goals:
+- Stable output format
+- Turkish character support
+- Correct empty password behavior
+- Clear feedback and recommendations
+- No reversed score logic
 """
 
 import re
@@ -16,18 +17,17 @@ import string
 from typing import Any, Dict, List
 
 
-UPPERCASE_CHARS = set(string.ascii_uppercase)
-LOWERCASE_CHARS = set(string.ascii_lowercase)
+TURKISH_UPPERCASE = "ÇĞİÖŞÜ"
+TURKISH_LOWERCASE = "çğıöşü"
+
+UPPERCASE_CHARS = set(string.ascii_uppercase + TURKISH_UPPERCASE)
+LOWERCASE_CHARS = set(string.ascii_lowercase + TURKISH_LOWERCASE)
 DIGIT_CHARS = set(string.digits)
 SPECIAL_CHARS = set("!@#$%^&*()-_=+[]{}|;:,.<>?~`")
 
 
 def _normalize_password(password: str) -> str:
-    """
-    Convert password input into a safe string value.
-    """
-
-    return str(password) if password is not None else ""
+    return "" if password is None else str(password)
 
 
 def check_length(
@@ -35,10 +35,6 @@ def check_length(
     min_length: int = 8,
     max_length: int = 128,
 ) -> Dict[str, Any]:
-    """
-    Check password length requirements.
-    """
-
     password = _normalize_password(password)
     length = len(password)
 
@@ -70,59 +66,44 @@ def check_length(
 
 
 def check_uppercase(password: str) -> Dict[str, Any]:
-    """
-    Check if password contains at least one uppercase letter.
-    """
-
     password = _normalize_password(password)
     count = sum(1 for char in password if char in UPPERCASE_CHARS)
-    passed = count > 0
 
     return {
-        "passed": passed,
+        "passed": count > 0,
         "details": (
             f"Parola büyük harf içeriyor ({count} adet)"
-            if passed
-            else "Parola en az bir büyük harf (A-Z) içermelidir"
+            if count > 0
+            else "Parola en az bir büyük harf (A-Z, Ç, Ğ, İ, Ö, Ş, Ü) içermelidir"
         ),
         "count": count,
     }
 
 
 def check_lowercase(password: str) -> Dict[str, Any]:
-    """
-    Check if password contains at least one lowercase letter.
-    """
-
     password = _normalize_password(password)
     count = sum(1 for char in password if char in LOWERCASE_CHARS)
-    passed = count > 0
 
     return {
-        "passed": passed,
+        "passed": count > 0,
         "details": (
             f"Parola küçük harf içeriyor ({count} adet)"
-            if passed
-            else "Parola en az bir küçük harf (a-z) içermelidir"
+            if count > 0
+            else "Parola en az bir küçük harf (a-z, ç, ğ, ı, ö, ş, ü) içermelidir"
         ),
         "count": count,
     }
 
 
 def check_digits(password: str) -> Dict[str, Any]:
-    """
-    Check if password contains at least one digit.
-    """
-
     password = _normalize_password(password)
     count = sum(1 for char in password if char in DIGIT_CHARS)
-    passed = count > 0
 
     return {
-        "passed": passed,
+        "passed": count > 0,
         "details": (
             f"Parola rakam içeriyor ({count} adet)"
-            if passed
+            if count > 0
             else "Parola en az bir rakam (0-9) içermelidir"
         ),
         "count": count,
@@ -130,19 +111,14 @@ def check_digits(password: str) -> Dict[str, Any]:
 
 
 def check_special_chars(password: str) -> Dict[str, Any]:
-    """
-    Check if password contains at least one special character.
-    """
-
     password = _normalize_password(password)
     count = sum(1 for char in password if char in SPECIAL_CHARS)
-    passed = count > 0
 
     return {
-        "passed": passed,
+        "passed": count > 0,
         "details": (
             f"Parola özel karakter içeriyor ({count} adet)"
-            if passed
+            if count > 0
             else "Parola en az bir özel karakter içermelidir (!@#$%^&* vb.)"
         ),
         "count": count,
@@ -151,10 +127,6 @@ def check_special_chars(password: str) -> Dict[str, Any]:
 
 
 def check_repeated_characters(password: str) -> Dict[str, Any]:
-    """
-    Check whether the password contains repeated characters such as aaa or 111.
-    """
-
     password = _normalize_password(password)
     matched = re.search(r"(.)\1{2,}", password)
     passed = matched is None
@@ -171,41 +143,17 @@ def check_repeated_characters(password: str) -> Dict[str, Any]:
 
 
 def check_sequential_patterns(password: str) -> Dict[str, Any]:
-    """
-    Check common sequential patterns such as abc, 123, qwerty.
-    """
-
     password = _normalize_password(password).lower()
 
     sequential_patterns = [
-        "abc",
-        "abcd",
-        "abcde",
-        "123",
-        "1234",
-        "12345",
-        "234",
-        "345",
-        "456",
-        "567",
-        "678",
-        "789",
-        "987",
-        "876",
-        "765",
-        "654",
-        "543",
-        "432",
-        "321",
-        "qwerty",
-        "asdf",
-        "zxcv",
+        "abc", "abcd", "abcde",
+        "123", "1234", "12345",
+        "234", "345", "456", "567", "678", "789",
+        "987", "876", "765", "654", "543", "432", "321",
+        "qwerty", "asdf", "zxcv",
     ]
 
-    matched_patterns = [
-        pattern for pattern in sequential_patterns if pattern in password
-    ]
-
+    matched_patterns = [pattern for pattern in sequential_patterns if pattern in password]
     passed = len(matched_patterns) == 0
 
     return {
@@ -220,10 +168,6 @@ def check_sequential_patterns(password: str) -> Dict[str, Any]:
 
 
 def check_common_words(password: str) -> Dict[str, Any]:
-    """
-    Check common weak password words.
-    """
-
     password = _normalize_password(password).lower()
 
     common_words = [
@@ -261,10 +205,6 @@ def check_common_words(password: str) -> Dict[str, Any]:
 
 
 def check_character_diversity(password: str) -> Dict[str, Any]:
-    """
-    Calculate how many character groups are used in the password.
-    """
-
     password = _normalize_password(password)
 
     groups = {
@@ -290,10 +230,6 @@ def check_character_diversity(password: str) -> Dict[str, Any]:
 
 
 def check_only_letters_or_digits(password: str) -> Dict[str, Any]:
-    """
-    Check whether password consists only of letters or only of digits.
-    """
-
     password = _normalize_password(password)
 
     if not password:
@@ -321,10 +257,6 @@ def check_only_letters_or_digits(password: str) -> Dict[str, Any]:
 
 
 def _security_level_from_score(score: float) -> str:
-    """
-    Convert rule-based score to a security level.
-    """
-
     if score < 20:
         return "Çok Zayıf"
     if score < 40:
@@ -337,42 +269,38 @@ def _security_level_from_score(score: float) -> str:
 
 
 def _build_recommendations(checks: Dict[str, Dict[str, Any]]) -> List[str]:
-    """
-    Build user-friendly recommendations from failed checks.
-    """
+    recommendations: List[str] = []
 
-    recommendations = []
-
-    if not checks["length"]["passed"]:
+    if "length" in checks and not checks["length"]["passed"]:
         recommendations.append("Parolayı en az 8, tercihen 12 veya daha fazla karakter yapın.")
 
-    if not checks["uppercase"]["passed"]:
+    if "uppercase" in checks and not checks["uppercase"]["passed"]:
         recommendations.append("En az bir büyük harf ekleyin.")
 
-    if not checks["lowercase"]["passed"]:
+    if "lowercase" in checks and not checks["lowercase"]["passed"]:
         recommendations.append("En az bir küçük harf ekleyin.")
 
-    if not checks["digits"]["passed"]:
+    if "digits" in checks and not checks["digits"]["passed"]:
         recommendations.append("En az bir rakam ekleyin.")
 
-    if not checks["special_chars"]["passed"]:
+    if "special_chars" in checks and not checks["special_chars"]["passed"]:
         recommendations.append("En az bir özel karakter ekleyin.")
 
-    if not checks["repeated_characters"]["passed"]:
+    if "repeated_characters" in checks and not checks["repeated_characters"]["passed"]:
         recommendations.append("Aynı karakteri üç veya daha fazla kez tekrar etmekten kaçının.")
 
-    if not checks["sequential_patterns"]["passed"]:
+    if "sequential_patterns" in checks and not checks["sequential_patterns"]["passed"]:
         recommendations.append("123, abc, qwerty gibi tahmin edilebilir dizilerden kaçının.")
 
-    if not checks["common_words"]["passed"]:
+    if "common_words" in checks and not checks["common_words"]["passed"]:
         recommendations.append("password, admin, parola gibi yaygın kelimeleri kullanmayın.")
 
-    if not checks["character_diversity"]["passed"]:
+    if "character_diversity" in checks and not checks["character_diversity"]["passed"]:
         recommendations.append(
             "Büyük harf, küçük harf, rakam ve özel karakter gruplarını birlikte kullanın."
         )
 
-    if not checks["only_letters_or_digits"]["passed"]:
+    if "only_letters_or_digits" in checks and not checks["only_letters_or_digits"]["passed"]:
         recommendations.append(
             "Parolayı yalnızca harflerden veya yalnızca rakamlardan oluşturmayın."
         )
@@ -385,83 +313,102 @@ def _build_recommendations(checks: Dict[str, Dict[str, Any]]) -> List[str]:
     return recommendations
 
 
+def _empty_password_result(password: str) -> Dict[str, Any]:
+    checks = {
+        "length": {
+            "passed": False,
+            "details": "Parola boş olamaz.",
+            "current_length": 0,
+            "min_length": 8,
+            "max_length": 128,
+        },
+        "uppercase": {
+            "passed": False,
+            "details": "Parola en az bir büyük harf içermelidir.",
+            "count": 0,
+        },
+        "lowercase": {
+            "passed": False,
+            "details": "Parola en az bir küçük harf içermelidir.",
+            "count": 0,
+        },
+        "digits": {
+            "passed": False,
+            "details": "Parola en az bir rakam içermelidir.",
+            "count": 0,
+        },
+        "special_chars": {
+            "passed": False,
+            "details": "Parola en az bir özel karakter içermelidir.",
+            "count": 0,
+            "allowed_special_chars": "".join(sorted(SPECIAL_CHARS)),
+        },
+        "repeated_characters": {
+            "passed": False,
+            "details": "Parola boş olduğu için tekrarlı karakter kontrolü yapılamadı.",
+            "matched_pattern": None,
+        },
+        "sequential_patterns": {
+            "passed": False,
+            "details": "Parola boş olduğu için ardışık desen kontrolü yapılamadı.",
+            "matched_patterns": [],
+        },
+        "common_words": {
+            "passed": False,
+            "details": "Parola boş olduğu için yaygın kelime kontrolü yapılamadı.",
+            "matched_words": [],
+        },
+        "character_diversity": {
+            "passed": False,
+            "details": "Karakter çeşitliliği düşük (0/4 grup kullanılmış).",
+            "used_group_count": 0,
+            "groups": {
+                "uppercase": False,
+                "lowercase": False,
+                "digits": False,
+                "special_chars": False,
+            },
+        },
+        "only_letters_or_digits": {
+            "passed": False,
+            "details": "Parola boş.",
+            "only_letters": False,
+            "only_digits": False,
+        },
+    }
+
+    total_checks = len(checks)
+
+    return {
+        "password": password,
+        "checks": checks,
+        "passed_count": 0,
+        "total_checks": total_checks,
+        "total_count": total_checks,
+        "score": 0.0,
+        "security_level": "Çok Zayıf",
+        "all_passed": False,
+        "details": [f"✗ {check['details']}" for check in checks.values()],
+        "recommendations": [
+            "Parola boş olamaz.",
+            "Parolayı en az 8, tercihen 12 veya daha fazla karakter yapın.",
+            "En az bir büyük harf ekleyin.",
+            "En az bir küçük harf ekleyin.",
+            "En az bir rakam ekleyin.",
+            "En az bir özel karakter ekleyin.",
+        ],
+    }
+
+
 def analyze_rules(
     password: str,
     min_length: int = 8,
     max_length: int = 128,
 ) -> Dict[str, Any]:
-    """
-    Comprehensive rule-based password analysis.
-
-    Returns:
-        JSON-compatible dictionary with:
-        - password
-        - checks
-        - passed_count
-        - total_checks
-        - total_count
-        - score
-        - security_level
-        - all_passed
-        - details
-        - recommendations
-    """
-
     password = _normalize_password(password)
-    if not password:
-        checks = {
-            "length": check_length(password, min_length, max_length),
-            "uppercase": check_uppercase(password),
-            "lowercase": check_lowercase(password),
-            "digits": check_digits(password),
-            "special_chars": check_special_chars(password),
-            "repeated_characters": {
-                "passed": False,
-                "details": "Parola boş olduğu için tekrarlı karakter kontrolü yapılamadı",
-                "matched_pattern": None,
-            },
-            "sequential_patterns": {
-                "passed": False,
-                "details": "Parola boş olduğu için ardışık desen kontrolü yapılamadı",
-                "matched_patterns": [],
-            },
-            "common_words": {
-                "passed": False,
-                "details": "Parola boş olduğu için yaygın kelime kontrolü yapılamadı",
-                "matched_words": [],
-            },
-            "character_diversity": check_character_diversity(password),
-            "only_letters_or_digits": check_only_letters_or_digits(password),
-        }
-
-        return {
-            "password": password,
-            "checks": checks,
-            "passed_count": 0,
-            "total_checks": len(checks),
-            "score": 0,
-            "security_level": "Çok Zayıf",
-            "all_passed": False,
-            "details": [
-                f"✗ {check['details']}"
-                for check in checks.values()
-            ],
-            "recommendations": _build_recommendations(checks),
-        }
 
     if password == "":
-        return {
-            "password": "",
-            "checks": {},
-            "passed_count": 0,
-            "total_checks": 0,
-            "total_count": 0,
-            "score": 0.0,
-            "security_level": "Çok Zayıf",
-            "all_passed": False,
-            "details": ["Parola boş olamaz."],
-            "recommendations": ["Parola boş olamaz."],
-        }
+        return _empty_password_result(password)
 
     checks = {
         "length": check_length(password, min_length, max_length),
@@ -478,8 +425,8 @@ def analyze_rules(
 
     passed_count = sum(1 for check in checks.values() if check["passed"])
     total_checks = len(checks)
-    score = (passed_count / total_checks) * 100 if total_checks else 0.0
-    score = round(score, 2)
+
+    score = round((passed_count / total_checks) * 100, 2) if total_checks else 0.0
 
     details = [
         f"✓ {check['details']}" if check["passed"] else f"✗ {check['details']}"
