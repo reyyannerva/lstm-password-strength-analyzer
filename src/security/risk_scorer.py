@@ -173,6 +173,8 @@ class HybridRiskScorer:
             score += 15
         elif variety_count == 3:
             score += 8
+        elif variety_count == 2:
+            score += 4
         elif variety_count <= 1:
             score -= 10
 
@@ -213,13 +215,13 @@ class HybridRiskScorer:
     def get_security_level(self, score: float) -> str:
         score = self._clamp(score, 0, 100)
 
-        if score < 20:
+        if score < 15:
             return "Çok Zayıf"
-        if score < 40:
+        if score < 35:
             return "Zayıf"
-        if score < 60:
+        if score < 55:
             return "Orta"
-        if score < 90:
+        if score < 85:
             return "Güçlü"
         return "Çok Güçlü"
 
@@ -273,15 +275,17 @@ class HybridRiskScorer:
             return 35
 
         if "yaygın kelime" in message_lower:
-            return 30 if length <= 10 else 18
+            if length <= 8:
+                return 25
+            return 20 if length <= 10 else 14
 
         if "klavye deseni" in message_lower:
-            return 28 if length <= 10 else 14
+            return 22 if length <= 10 else 12
 
         if "ardışık" in message_lower:
             if strong_context:
-                return 8
-            return 28 if length <= 8 else 14
+                return 6
+            return 20 if length <= 8 else 12
 
         if "tekrarlı" in message_lower or "tekrar" in message_lower:
             return 18 if length <= 10 else 10

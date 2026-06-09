@@ -45,27 +45,32 @@ KEYBOARD_ROWS = [
 ]
 
 COMMON_WORDS = [
-    "password",
-    "parola",
-    "admin",
-    "qwerty",
-    "login",
-    "welcome",
-    "letmein",
-    "iloveyou",
-    "root",
+    # Parola kelimeleri
+    "password", "passwd", "pass", "parola", "sifre",
+    # Sistem/yetkili
+    "admin", "administrator", "root", "user", "guest", "test",
+    # Yaygın giriş
+    "login", "logon", "welcome", "access", "enter",
+    "letmein", "letme", "secure", "security",
+    # Duygusal / yaygın
+    "iloveyou", "love", "monkey", "dragon", "master", "shadow",
+    "sunshine", "princess", "sunshine", "baseball", "football",
+    "soccer", "hockey", "ninja", "batman", "superman", "spider",
+    # İngilizce yaygın
+    "abc", "qwerty", "trustno", "hello", "changeme",
+    "secret", "default", "temp", "demo", "sample",
+    # Türkçe yaygın
+    "merhaba", "sifrem", "turkiye", "istanbul", "ankara",
 ]
 
 COMMON_NAMES = [
-    "ahmet",
-    "mehmet",
-    "ali",
-    "ayse",
-    "ayşe",
-    "fatma",
-    "john",
-    "michael",
-    "mike",
+    # Türkçe
+    "ahmet", "mehmet", "ali", "ayse", "ayşe", "fatma",
+    "zeynep", "burak", "emre", "selin", "deniz", "mert",
+    "cansu", "yusuf", "omer", "ömer", "hasan", "huseyin",
+    # İngilizce
+    "john", "michael", "mike", "emma", "olivia", "liam",
+    "noah", "james", "david", "sarah", "jessica", "daniel",
 ]
 
 COMMON_YEARS = [str(year) for year in range(1950, 2031)]
